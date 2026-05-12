@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads
+uploads/
+
+# Prisma
+prisma/*.db
+
+# Logs
+*.log
+
+# Old scaffold (to be deleted)
+appraisal-system/
