@@ -1,4 +1,3 @@
-import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../lib/prisma.js';
 
 interface CategoryInput {
@@ -12,6 +11,7 @@ interface ScoreResult {
 }
 
 interface SectionTotals {
+  [key: string]: number;
   teaching: number;
   research: number;
   service: number;
@@ -21,6 +21,11 @@ interface SectionTotals {
 /**
  * Calculate score for a single category entry based on designation-specific rules.
  * All 23 scoring categories from FINAL_SCORING.md are handled here.
+ *
+ * Scoring Model:
+ * - Each category score is calculated as a percentage of the SECTION max.
+ * - Section maxes: Teaching (AP=60, AssoP=50, Prof=40), Research (AP=10, AssoP=20, Prof=30), Service (all=30)
+ * - Research & Service scores are additive across categories, capped at the section max.
  */
 export async function calculateCategoryScore(
   categorySlNo: number,
@@ -32,8 +37,9 @@ export async function calculateCategoryScore(
   let score = 0;
 
   switch (categorySlNo) {
-    // ── TEACHING ─────────────────────────────────────────────────────────────
-    // Category 1: FCI Score
+    // ══════════════════════════════════════════════════════════════════════════
+    // TEACHING — Category 1: FCI Score
+    // ══════════════════════════════════════════════════════════════════════════
     case 1: {
       const fci = Number(rawValue.fci_percentage || 0);
       let pct = 0;
@@ -46,26 +52,21 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Categories 2-8: Simple number-based (marks per item, capped at max)
-    case 2: case 3: case 4: case 5: case 6: case 7: case 8: {
-      const value = Number(rawValue.value || 0);
-      score = Math.min(value * (maxWeightage / Math.max(value, 1)), maxWeightage);
-      // Simplified: proportional to max weightage
-      score = Math.min(value, maxWeightage);
-      break;
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    // RESEARCH — Categories 2-12
+    // ══════════════════════════════════════════════════════════════════════════
 
-    // ── RESEARCH ─────────────────────────────────────────────────────────────
-    // Category 9: Non-paid Refereed Journal Papers (SJR/Scopus/WoS)
-    case 9: {
+    // Category 2: Non-paid Refereed Journal Papers (SJR/Scopus/WoS)
+    // 1 paper = 100% of research weightage
+    case 2: {
       const papers = Number(rawValue.count || 0);
-      // 1 paper = 100% of research weightage
       score = papers >= 1 ? sectionMax : 0;
       break;
     }
 
-    // Category 10: Indexed Conference Papers
-    case 10: {
+    // Category 3: Indexed Conference Papers (SJR/Scopus/WoS)
+    // Designation-based: AP=50%, AssoP=25%, Prof=20% per paper
+    case 3: {
       const papers = Number(rawValue.count || 0);
       let pctPerPaper = 0;
       if (designation === 'ASSISTANT_PROFESSOR') pctPerPaper = 50;
@@ -75,58 +76,60 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 11: Non-refereed Journals & Non-indexed Conferences
-    case 11: {
+    // Category 4: Non-paid Non-refereed Journals & Non-indexed Conferences
+    // 10% of research weightage if count > 0
+    case 4: {
       const count = Number(rawValue.count || 0);
       score = count > 0 ? (10 / 100) * sectionMax : 0;
       break;
     }
 
-    // Category 12: Books/Chapters
-    case 12: {
+    // Category 5: Books/Chapters
+    // 1 book = 50%, 1 chapter = 20% of research weightage
+    case 5: {
       const books = Number(rawValue.books || 0);
       const chapters = Number(rawValue.chapters || 0);
       score = ((books * 50 + chapters * 20) / 100) * sectionMax;
       break;
     }
 
-    // Category 13: Disclosures Filed
-    case 13: {
+    // Category 6: Disclosures Filed — 1 disclosure = 10%
+    case 6: {
       const count = Number(rawValue.count || 0);
       score = (count * 10 / 100) * sectionMax;
       break;
     }
 
-    // Category 14: Patents Granted
-    case 14: {
+    // Category 7: Patents Granted — 1 patent = 50%
+    case 7: {
       const count = Number(rawValue.count || 0);
       score = (count * 50 / 100) * sectionMax;
       break;
     }
 
-    // Category 15: Research Guidance UG
-    case 15: {
+    // Category 8: Research Guidance UG — 1 batch = 1%
+    case 8: {
       const batches = Number(rawValue.count || 0);
       score = (batches * 1 / 100) * sectionMax;
       break;
     }
 
-    // Category 16: Research Guidance PG
-    case 16: {
+    // Category 9: Research Guidance PG — 1 batch = 3%
+    case 9: {
       const batches = Number(rawValue.count || 0);
       score = (batches * 3 / 100) * sectionMax;
       break;
     }
 
-    // Category 17: Research Guidance PhD
-    case 17: {
+    // Category 10: Research Guidance PhD — 1 batch = 7%
+    case 10: {
       const batches = Number(rawValue.count || 0);
       score = (batches * 7 / 100) * sectionMax;
       break;
     }
 
-    // Category 18: Funded Projects (slab-based)
-    case 18: {
+    // Category 11: Funded Projects (slab-based)
+    case 11: {
       const amount = Number(rawValue.amount_lakhs || 0);
       let pct = 0;
       if (amount >= 10) pct = 100;
@@ -137,8 +140,8 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 19: Consulting Projects (slab-based)
-    case 19: {
+    // Category 12: Consulting Projects (slab-based)
+    case 12: {
       const amount = Number(rawValue.amount_lakhs || 0);
       let pct = 0;
       if (amount >= 10) pct = 100;
@@ -149,16 +152,20 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // ── SERVICE & PROFESSIONAL DEVELOPMENT ───────────────────────────────────
-    // Category 20: Conference Chair/Session Chair/Reviewer Q1/Q2
-    case 20: {
+    // ══════════════════════════════════════════════════════════════════════════
+    // SERVICE & PROFESSIONAL DEVELOPMENT — Categories 13-23
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Category 13: Conference Chair/Session Chair/Reviewer Q1/Q2 — 5%
+    case 13: {
       const count = Number(rawValue.count || 0);
       score = count > 0 ? (5 / 100) * sectionMax : 0;
       break;
     }
 
-    // Category 21: FDP/Seminar/Workshop organized as coordinator
-    case 21: {
+    // Category 14: FDP/Seminar/Workshop organized as coordinator
+    // 5 days = 10%, 3 days = 5%
+    case 14: {
       const days = Number(rawValue.days || 0);
       let pct = 0;
       if (days >= 5) pct = 10;
@@ -167,17 +174,67 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 22: Invited Technical Talks outside Institute
-    case 22: {
+    // Category 15: Invited Technical Talks outside Institute — 10%
+    case 15: {
       const count = Number(rawValue.count || 0);
       score = count > 0 ? (10 / 100) * sectionMax : 0;
       break;
     }
 
-    // Category 23: Events Participated Outside Institute
-    case 23: {
+    // Category 16: Events Participated Outside Institute — 10%
+    case 16: {
       const count = Number(rawValue.count || 0);
       score = count > 0 ? (10 / 100) * sectionMax : 0;
+      break;
+    }
+
+    // Category 17: Events Participated Inside Institute — 5%
+    case 17: {
+      const count = Number(rawValue.count || 0);
+      score = count > 0 ? (5 / 100) * sectionMax : 0;
+      break;
+    }
+
+    // Category 18: Industry Relations — 10%
+    case 18: {
+      const count = Number(rawValue.count || 0);
+      score = count > 0 ? (10 / 100) * sectionMax : 0;
+      break;
+    }
+
+    // Category 19: Institutional/Departmental Services (NBA/NIRF)
+    // Coordinator = 20%, Others = 5%
+    case 19: {
+      const role = String(rawValue.role || '');
+      if (role === 'coordinator') score = (20 / 100) * sectionMax;
+      else if (role === 'member') score = (5 / 100) * sectionMax;
+      break;
+    }
+
+    // Category 20: Other Services to Institution/Society — 3%
+    case 20: {
+      const count = Number(rawValue.count || 0);
+      score = count > 0 ? (3 / 100) * sectionMax : 0;
+      break;
+    }
+
+    // Category 21: Awards and Honours — 1 event = 15%
+    case 21: {
+      const count = Number(rawValue.count || 0);
+      score = (count * 15 / 100) * sectionMax;
+      break;
+    }
+
+    // Category 22: Professionalism / Team Spirit — 2%
+    case 22: {
+      const count = Number(rawValue.count || 0);
+      score = count > 0 ? (2 / 100) * sectionMax : 0;
+      break;
+    }
+
+    // Category 23: Any Other Major Contributions — free text, no auto scoring
+    case 23: {
+      score = 0;
       break;
     }
 
@@ -185,8 +242,8 @@ export async function calculateCategoryScore(
       score = 0;
   }
 
-  // Cap at max weightage for this category
-  return Math.min(Math.max(score, 0), maxWeightage);
+  // Cap at section max (max_weightage = section max in our model)
+  return Math.min(Math.max(score, 0), sectionMax);
 }
 
 /**
@@ -211,7 +268,7 @@ export async function calculateApplicationScores(
     },
   });
 
-  // Section maximums by designation
+  // Section maximums by designation (from FINAL_SCORING.md)
   const sectionMaxes: Record<string, Record<string, number>> = {
     ASSISTANT_PROFESSOR: { TEACHING: 60, RESEARCH: 10, SERVICE: 30 },
     ASSOCIATE_PROFESSOR: { TEACHING: 50, RESEARCH: 20, SERVICE: 30 },
@@ -227,14 +284,13 @@ export async function calculateApplicationScores(
     if (!rule) continue;
 
     const sectionMax = maxes[entry.category.section] || 0;
-    const maxW = Number(rule.max_weightage);
     const rawValue = entry.raw_value as Record<string, any>;
 
     const score = await calculateCategoryScore(
       entry.category.sl_no,
       designation,
       rawValue,
-      maxW,
+      Number(rule.max_weightage),
       sectionMax
     );
 

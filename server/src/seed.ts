@@ -63,105 +63,283 @@ async function main() {
   }
   console.log(`✅ ${users.length} users seeded (password: Admin@123)`);
 
-  // ─── SCORING CATEGORIES ─────────────────────────────────────────────────────
+  // ─── SCORING CATEGORIES (Strictly per FINAL_SCORING.md) ────────────────────
+  //
+  // TEACHING: 1 category  (sl_no 1)
+  // RESEARCH: 11 categories (sl_no 2-12)
+  // SERVICE:  11 categories (sl_no 13-23)
+
   const categories = [
-    // TEACHING (1-8)
-    { sl_no: 1, section: ScoringSection.TEACHING, name: 'FCI Score', input_type: 'percentage', description: 'Faculty Course Index from student feedback' },
-    { sl_no: 2, section: ScoringSection.TEACHING, name: 'Course Material Preparation', input_type: 'number', description: 'Quality of course materials, lesson plans, and lab manuals' },
-    { sl_no: 3, section: ScoringSection.TEACHING, name: 'Remedial Coaching', input_type: 'number', description: 'Extra classes and remedial sessions conducted' },
-    { sl_no: 4, section: ScoringSection.TEACHING, name: 'Innovative Teaching Methods', input_type: 'number', description: 'Use of ICT, flipped classrooms, project-based learning' },
-    { sl_no: 5, section: ScoringSection.TEACHING, name: 'Examination Results', input_type: 'percentage', description: 'Pass percentage and improvement in results' },
-    { sl_no: 6, section: ScoringSection.TEACHING, name: 'Student Projects Guided', input_type: 'number', description: 'UG/PG projects and dissertations guided' },
-    { sl_no: 7, section: ScoringSection.TEACHING, name: 'Content Beyond Syllabus', input_type: 'number', description: 'Additional topics, certifications, and value-added courses' },
-    { sl_no: 8, section: ScoringSection.TEACHING, name: 'Lab Development', input_type: 'number', description: 'New experiments, lab manual updates, equipment setup' },
+    // ── TEACHING ──
+    {
+      sl_no: 1,
+      section: ScoringSection.TEACHING,
+      name: 'FCI Score',
+      description: 'Average FCI Score of all courses handled (percentage)',
+      input_type: 'percentage',
+      input_config: { max_attachments: 1, field: 'fci_percentage' },
+    },
 
-    // RESEARCH (9-17)
-    { sl_no: 9, section: ScoringSection.RESEARCH, name: 'Journal Publications (SCI/Scopus)', input_type: 'number', description: 'Research papers in SCI/Scopus indexed journals' },
-    { sl_no: 10, section: ScoringSection.RESEARCH, name: 'Conference Publications', input_type: 'number', description: 'Papers in national/international conferences' },
-    { sl_no: 11, section: ScoringSection.RESEARCH, name: 'Books/Book Chapters Published', input_type: 'number', description: 'Authored/co-authored books or book chapters' },
-    { sl_no: 12, section: ScoringSection.RESEARCH, name: 'Patents Filed/Granted', input_type: 'number', description: 'Patents filed, published, or granted' },
-    { sl_no: 13, section: ScoringSection.RESEARCH, name: 'Funded Research Projects', input_type: 'currency_slab', description: 'Research grants received from funding agencies' },
-    { sl_no: 14, section: ScoringSection.RESEARCH, name: 'Consultancy Projects', input_type: 'currency_slab', description: 'Industry consultancy and sponsored projects' },
-    { sl_no: 15, section: ScoringSection.RESEARCH, name: 'PhD Scholars Guided', input_type: 'number', description: 'Research scholars guided as supervisor/co-supervisor' },
-    { sl_no: 16, section: ScoringSection.RESEARCH, name: 'Research Guidance (M.Tech)', input_type: 'number', description: 'M.Tech dissertations supervised' },
-    { sl_no: 17, section: ScoringSection.RESEARCH, name: 'Citation Index / h-index', input_type: 'number', description: 'Google Scholar h-index and citation metrics' },
+    // ── RESEARCH ──
+    {
+      sl_no: 2,
+      section: ScoringSection.RESEARCH,
+      name: 'Non-paid Refereed Journal Papers in SJR/Scopus/Web of Science',
+      description: 'Faculty must be one among first 3 authors. 1 paper = 100% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 2, field: 'count' },
+    },
+    {
+      sl_no: 3,
+      section: ScoringSection.RESEARCH,
+      name: 'Indexed Conference Papers in SJR/Scopus/Web of Science',
+      description: 'Faculty must be one among first 3 authors. Designation-based scoring per paper.',
+      input_type: 'number',
+      input_config: { max_attachments: 2, field: 'count' },
+    },
+    {
+      sl_no: 4,
+      section: ScoringSection.RESEARCH,
+      name: 'Non-paid Non-refereed Journals and Non-indexed Conferences',
+      description: 'Faculty must be one among first 3 authors. 10% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 2, field: 'count' },
+    },
+    {
+      sl_no: 5,
+      section: ScoringSection.RESEARCH,
+      name: 'Books/Chapters',
+      description: 'Faculty must be one among first 3 authors. 1 book = 50%, 1 chapter = 20%.',
+      input_type: 'composite',
+      input_config: { max_attachments: 1, fields: ['books', 'chapters'] },
+    },
+    {
+      sl_no: 6,
+      section: ScoringSection.RESEARCH,
+      name: 'Disclosures Filed',
+      description: '1 disclosure = 10% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 7,
+      section: ScoringSection.RESEARCH,
+      name: 'Patents Granted',
+      description: '1 patent = 50% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 8,
+      section: ScoringSection.RESEARCH,
+      name: 'Research Guidance UG',
+      description: '1 batch = 1% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 9,
+      section: ScoringSection.RESEARCH,
+      name: 'Research Guidance PG',
+      description: '1 batch = 3% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 10,
+      section: ScoringSection.RESEARCH,
+      name: 'Research Guidance PhD',
+      description: '1 batch = 7% of research weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 11,
+      section: ScoringSection.RESEARCH,
+      name: 'Funded Projects',
+      description: 'Slab-based: ≥10L=100%, ≥5L=50%, ≥1L=30%, <1L=20% of research weightage.',
+      input_type: 'currency_slab',
+      input_config: { max_attachments: 1, field: 'amount_lakhs' },
+    },
+    {
+      sl_no: 12,
+      section: ScoringSection.RESEARCH,
+      name: 'Consulting Projects',
+      description: 'Slab-based: ≥10L=100%, ≥5L=60%, ≥1L=50%, <1L=20% of research weightage.',
+      input_type: 'currency_slab',
+      input_config: { max_attachments: 1, field: 'amount_lakhs' },
+    },
 
-    // SERVICE (18-23)
-    { sl_no: 18, section: ScoringSection.SERVICE, name: 'Administrative Responsibilities', input_type: 'composite', description: 'Dean, Controller of Exams, Warden, etc.' },
-    { sl_no: 19, section: ScoringSection.SERVICE, name: 'Committee Memberships', input_type: 'number', description: 'Institutional committees, BOS, Academic Council' },
-    { sl_no: 20, section: ScoringSection.SERVICE, name: 'FDP/Workshop Organized', input_type: 'number', description: 'Faculty development programs and workshops organized' },
-    { sl_no: 21, section: ScoringSection.SERVICE, name: 'FDP/Workshop Attended', input_type: 'number', description: 'Professional development programs attended' },
-    { sl_no: 22, section: ScoringSection.SERVICE, name: 'Community Service & Outreach', input_type: 'number', description: 'Social outreach, NSS, rural programs' },
-    { sl_no: 23, section: ScoringSection.SERVICE, name: 'Professional Body Membership', input_type: 'number', description: 'IEEE, ACM, CSI, ISTE memberships and activities' },
+    // ── SERVICE & PROFESSIONAL DEVELOPMENT ──
+    {
+      sl_no: 13,
+      section: ScoringSection.SERVICE,
+      name: 'Conference Chair, Session Chair, Reviewer of Q1/Q2 Journal',
+      description: '5% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 14,
+      section: ScoringSection.SERVICE,
+      name: 'FDP/Seminar/Workshop organized as coordinator',
+      description: '5 days = 10%, 3 days = 5% of service weightage.',
+      input_type: 'days_slab',
+      input_config: { max_attachments: 1, field: 'days' },
+    },
+    {
+      sl_no: 15,
+      section: ScoringSection.SERVICE,
+      name: 'Invited Technical Talks outside the Institute',
+      description: '10% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 16,
+      section: ScoringSection.SERVICE,
+      name: 'Events Participated Outside Institute (FDP/Seminar/Workshop/Conference)',
+      description: '10% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 17,
+      section: ScoringSection.SERVICE,
+      name: 'Events Participated Inside Institute (FDP/Seminar/Workshop/Conference)',
+      description: '5% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 18,
+      section: ScoringSection.SERVICE,
+      name: 'Industry Relations (MoU, Co-hosted event, Technical Talk Series)',
+      description: '10% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 19,
+      section: ScoringSection.SERVICE,
+      name: 'Institutional/Departmental Services (NBA/NIRF)',
+      description: 'Coordinator = 20%, Others = 5% of service weightage.',
+      input_type: 'role_select',
+      input_config: { max_attachments: 1, field: 'role', options: ['coordinator', 'member'] },
+    },
+    {
+      sl_no: 20,
+      section: ScoringSection.SERVICE,
+      name: 'Other Services to Institution or Society Contribution',
+      description: '3% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 21,
+      section: ScoringSection.SERVICE,
+      name: 'Awards and Honours',
+      description: '1 event = 15% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 22,
+      section: ScoringSection.SERVICE,
+      name: 'Professionalism / Team Spirit',
+      description: '2% of service weightage.',
+      input_type: 'number',
+      input_config: { max_attachments: 1, field: 'count' },
+    },
+    {
+      sl_no: 23,
+      section: ScoringSection.SERVICE,
+      name: 'Any Other Major Contributions',
+      description: 'Free text (max 500 characters), no automatic scoring.',
+      input_type: 'text',
+      input_config: { max_attachments: 1, field: 'description', max_chars: 500 },
+    },
   ];
+
+  // Clear old data to avoid conflicts
+  console.log('🧹 Clearing old scoring data...');
+  await prisma.proofDocument.deleteMany({});
+  await prisma.categoryEntry.deleteMany({});
+  await prisma.scoringRule.deleteMany({});
+  await prisma.scoringCategory.deleteMany({});
+  console.log('✅ Old scoring data cleared');
 
   const createdCategories: Record<number, string> = {};
   for (const cat of categories) {
-    const c = await prisma.scoringCategory.upsert({
-      where: { id: `cat-${cat.sl_no}` },
-      update: {},
-      create: {
+    const c = await prisma.scoringCategory.create({
+      data: {
         id: `cat-${cat.sl_no}`,
-        ...cat,
+        sl_no: cat.sl_no,
+        section: cat.section,
+        name: cat.name,
+        description: cat.description,
+        input_type: cat.input_type,
+        input_config: cat.input_config,
       },
     });
     createdCategories[cat.sl_no] = c.id;
   }
-  console.log(`✅ ${categories.length} scoring categories seeded`);
+  console.log(`✅ ${categories.length} scoring categories seeded (per FINAL_SCORING.md)`);
 
-  // ─── SCORING RULES (3 designations × 23 categories = 69 rules) ─────────────
+  // ─── SCORING RULES ─────────────────────────────────────────────────────────
+  // Section maxes by designation (from FINAL_SCORING.md)
+  // Teaching: AP=60, AssoP=50, Prof=40
+  // Research: AP=10, AssoP=20, Prof=30
+  // Service:  AP=30, AssoP=30, Prof=30
+
+  const sectionMaxes: Record<ScoringSection, Record<Designation, number>> = {
+    TEACHING: { ASSISTANT_PROFESSOR: 60, ASSOCIATE_PROFESSOR: 50, PROFESSOR: 40 },
+    RESEARCH: { ASSISTANT_PROFESSOR: 10, ASSOCIATE_PROFESSOR: 20, PROFESSOR: 30 },
+    SERVICE:  { ASSISTANT_PROFESSOR: 30, ASSOCIATE_PROFESSOR: 30, PROFESSOR: 30 },
+  };
+
   const designations = [Designation.ASSISTANT_PROFESSOR, Designation.ASSOCIATE_PROFESSOR, Designation.PROFESSOR];
 
-  const maxWeightages: Record<number, Record<Designation, number>> = {
-    // TEACHING
-    1:  { ASSISTANT_PROFESSOR: 15, ASSOCIATE_PROFESSOR: 12, PROFESSOR: 10 },
-    2:  { ASSISTANT_PROFESSOR: 10, ASSOCIATE_PROFESSOR: 8,  PROFESSOR: 5 },
-    3:  { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 2 },
-    4:  { ASSISTANT_PROFESSOR: 8,  ASSOCIATE_PROFESSOR: 8,  PROFESSOR: 5 },
-    5:  { ASSISTANT_PROFESSOR: 12, ASSOCIATE_PROFESSOR: 10, PROFESSOR: 8 },
-    6:  { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 8,  PROFESSOR: 10 },
-    7:  { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 5 },
-    8:  { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 2 },
-    // RESEARCH
-    9:  { ASSISTANT_PROFESSOR: 8,  ASSOCIATE_PROFESSOR: 12, PROFESSOR: 15 },
-    10: { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 5 },
-    11: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 8 },
-    12: { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 8,  PROFESSOR: 10 },
-    13: { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 8,  PROFESSOR: 12 },
-    14: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 8 },
-    15: { ASSISTANT_PROFESSOR: 2,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 10 },
-    16: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 5 },
-    17: { ASSISTANT_PROFESSOR: 2,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 5 },
-    // SERVICE
-    18: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 8 },
-    19: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 5 },
-    20: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 5,  PROFESSOR: 5 },
-    21: { ASSISTANT_PROFESSOR: 5,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 3 },
-    22: { ASSISTANT_PROFESSOR: 3,  ASSOCIATE_PROFESSOR: 3,  PROFESSOR: 3 },
-    23: { ASSISTANT_PROFESSOR: 2,  ASSOCIATE_PROFESSOR: 2,  PROFESSOR: 2 },
+  // For each category, the max_weightage = section max for that designation
+  // The formula JSON stores the specific scoring logic from FINAL_SCORING.md
+
+  const formulasBySlNo: Record<number, any> = {
+    1:  { type: 'fci_slab', slabs: [{ min: 85, pct: 100 }, { min: 80, pct: 90 }, { min: 75, pct: 80 }, { min: 70, pct: 70 }, { min: 0, pct: 40 }] },
+    2:  { type: 'count_threshold', pct_per_item: 100, description: '1 paper = 100% of research weightage' },
+    3:  { type: 'designation_based', ASSISTANT_PROFESSOR: 50, ASSOCIATE_PROFESSOR: 25, PROFESSOR: 20, description: 'pct per paper varies by designation' },
+    4:  { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+    5:  { type: 'composite', book_pct: 50, chapter_pct: 20, description: '1 book=50%, 1 chapter=20%' },
+    6:  { type: 'count_pct', pct_per_item: 10, description: '1 disclosure = 10%' },
+    7:  { type: 'count_pct', pct_per_item: 50, description: '1 patent = 50%' },
+    8:  { type: 'count_pct', pct_per_item: 1, description: '1 batch = 1%' },
+    9:  { type: 'count_pct', pct_per_item: 3, description: '1 batch = 3%' },
+    10: { type: 'count_pct', pct_per_item: 7, description: '1 batch = 7%' },
+    11: { type: 'currency_slab', slabs: [{ min: 10, pct: 100 }, { min: 5, pct: 50 }, { min: 1, pct: 30 }, { min: 0, pct: 20 }] },
+    12: { type: 'currency_slab', slabs: [{ min: 10, pct: 100 }, { min: 5, pct: 60 }, { min: 1, pct: 50 }, { min: 0, pct: 20 }] },
+    13: { type: 'count_threshold', pct_if_any: 5, description: '5% if count > 0' },
+    14: { type: 'days_slab', slabs: [{ min: 5, pct: 10 }, { min: 3, pct: 5 }] },
+    15: { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+    16: { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+    17: { type: 'count_threshold', pct_if_any: 5, description: '5% if count > 0' },
+    18: { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+    19: { type: 'role_based', coordinator_pct: 20, member_pct: 5 },
+    20: { type: 'count_threshold', pct_if_any: 3, description: '3% if count > 0' },
+    21: { type: 'count_pct', pct_per_item: 15, description: '1 event = 15%' },
+    22: { type: 'count_threshold', pct_if_any: 2, description: '2% if count > 0' },
+    23: { type: 'free_text', pct: 0, description: 'No automatic scoring' },
   };
 
   let ruleCount = 0;
-  for (const slNo of Object.keys(maxWeightages).map(Number)) {
+  for (const cat of categories) {
+    const section = cat.section;
     for (const designation of designations) {
-      const maxW = maxWeightages[slNo][designation];
-      await prisma.scoringRule.upsert({
-        where: {
-          category_id_designation: {
-            category_id: createdCategories[slNo],
-            designation,
-          },
-        },
-        update: {},
-        create: {
-          category_id: createdCategories[slNo],
+      const maxW = sectionMaxes[section][designation];
+      await prisma.scoringRule.create({
+        data: {
+          category_id: createdCategories[cat.sl_no],
           designation,
           max_weightage: maxW,
-          formula: {
-            type: 'linear',
-            max: maxW,
-            description: `Up to ${maxW} marks based on evidence`,
-          },
+          formula: formulasBySlNo[cat.sl_no],
         },
       });
       ruleCount++;

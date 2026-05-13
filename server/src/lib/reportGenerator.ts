@@ -76,7 +76,7 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
     .fontSize(22).font('Helvetica-Bold')
     .text('FACULTY APPRAISAL FORM', 50, 25, { align: 'center' });
   doc.fontSize(11).font('Helvetica')
-    .text('Rashtreeya Vidyalaya Institute of Technology', 50, 52, { align: 'center' });
+    .text('Ramaiah Institute of Technology', 50, 52, { align: 'center' });
   doc.fontSize(10)
     .text(`Academic Year: ${app.academic_year}`, 50, 70, { align: 'center' });
 

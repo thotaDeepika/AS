@@ -118,7 +118,7 @@ router.get('/categories/list', async (_req: Request, res: Response, next: NextFu
   try {
     const categories = await prisma.scoringCategory.findMany({
       orderBy: { sl_no: 'asc' },
-      select: { id: true, sl_no: true, section: true, name: true, description: true, input_type: true },
+      select: { id: true, sl_no: true, section: true, name: true, description: true, input_type: true, input_config: true },
     });
 
     res.json({ success: true, data: { categories } });
@@ -140,7 +140,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
         reviewer: { select: { id: true, name: true, email: true } },
         category_entries: {
           include: {
-            category: { select: { id: true, sl_no: true, section: true, name: true, input_type: true, description: true } },
+            category: { select: { id: true, sl_no: true, section: true, name: true, input_type: true, description: true, input_config: true } },
             proof_documents: true,
           },
           orderBy: { category: { sl_no: 'asc' } },

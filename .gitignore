@@ -8,16 +8,18 @@ node_modules/
 # Build output
 dist/
 build/
+server/dist/
 
 # IDE
 .vscode/
 .idea/
+.gemini/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Uploads
+# Uploads (user data – not tracked)
 uploads/
 
 # Prisma

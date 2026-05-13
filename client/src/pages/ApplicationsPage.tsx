@@ -12,6 +12,7 @@ interface Category {
   name: string;
   description: string;
   input_type: string;
+  input_config?: any;
 }
 
 interface CategoryEntry {
@@ -38,6 +39,13 @@ interface Application {
 const currentYear = new Date().getFullYear();
 const academicYear = `${currentYear}-${currentYear + 1}`;
 
+// Section maxes by designation (from FINAL_SCORING.md)
+const SECTION_MAXES: Record<string, Record<string, number>> = {
+  ASSISTANT_PROFESSOR: { TEACHING: 60, RESEARCH: 10, SERVICE: 30 },
+  ASSOCIATE_PROFESSOR: { TEACHING: 50, RESEARCH: 20, SERVICE: 30 },
+  PROFESSOR:           { TEACHING: 40, RESEARCH: 30, SERVICE: 30 },
+};
+
 export default function ApplicationsPage() {
   const { user } = useAuth();
   const [application, setApplication] = useState<Application | null>(null);
@@ -50,6 +58,9 @@ export default function ApplicationsPage() {
   const [scoreTotals, setScoreTotals] = useState<any>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>('TEACHING');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  const designation = user?.designation || 'ASSISTANT_PROFESSOR';
+  const maxes = SECTION_MAXES[designation] || SECTION_MAXES.ASSISTANT_PROFESSOR;
 
   // Get form values from application entries
   const getEntryValue = useCallback((categoryId: string, field: string): any => {
@@ -246,12 +257,12 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* Score Overview */}
+      {/* Score Overview — designation-aware max values */}
       {(scoreTotals || application.total_score !== null) && (
         <div className="score-overview">
-          <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? 0} maxScore={60} color="#3b82f6" size="sm" />
-          <ScoreCard label="Research" score={scoreTotals?.research ?? 0} maxScore={30} color="#8b5cf6" size="sm" />
-          <ScoreCard label="Service" score={scoreTotals?.service ?? 0} maxScore={30} color="#10b981" size="sm" />
+          <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? 0} maxScore={maxes.TEACHING} color="#3b82f6" size="sm" />
+          <ScoreCard label="Research" score={scoreTotals?.research ?? 0} maxScore={maxes.RESEARCH} color="#8b5cf6" size="sm" />
+          <ScoreCard label="Service" score={scoreTotals?.service ?? 0} maxScore={maxes.SERVICE} color="#10b981" size="sm" />
           <ScoreCard label="Total Score" score={scoreTotals?.total ?? application.total_score ?? 0} maxScore={100} color="#f59e0b" />
         </div>
       )}
@@ -324,7 +335,7 @@ interface CategoryFormItemProps {
   getEntryValue: (field: string) => any;
 }
 
-function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave, onUpload, getEntryValue }: CategoryFormItemProps) {
+function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave, onUpload }: CategoryFormItemProps) {
   const [localValues, setLocalValues] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
 
@@ -345,9 +356,14 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
     setDirty(false);
   };
 
-  // Generate input fields based on category
+  // Determine max attachments from category config
+  const maxAttachments = (category as any).input_config?.max_attachments || 1;
+
+  // Generate input fields based on category sl_no (FINAL_SCORING.md)
   const renderInput = () => {
     const sl = category.sl_no;
+
+    // ── TEACHING ──
 
     // Category 1: FCI Score
     if (sl === 1) {
@@ -366,14 +382,15 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Categories 2-4: Paper counts
+    // ── RESEARCH ──
+
+    // Categories 2-4: Paper/Publication counts
     if (sl >= 2 && sl <= 4) {
       return (
         <div className="category-field">
           <label>Number of Papers/Publications</label>
           <input
-            type="number"
-            min="0"
+            type="number" min="0"
             value={localValues.count ?? ''}
             onChange={e => updateField('count', parseInt(e.target.value) || 0)}
             disabled={!isDraft}
@@ -383,7 +400,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Category 5: Books/Chapters
+    // Category 5: Books/Chapters (composite)
     if (sl === 5) {
       return (
         <div className="category-fields-row">
@@ -409,7 +426,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Categories 6-7: Disclosures/Patents
+    // Categories 6-7: Disclosures Filed / Patents Granted
     if (sl === 6 || sl === 7) {
       return (
         <div className="category-field">
@@ -424,7 +441,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Categories 8-10: Research Guidance
+    // Categories 8-10: Research Guidance (UG/PG/PhD)
     if (sl >= 8 && sl <= 10) {
       return (
         <div className="category-field">
@@ -439,22 +456,24 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Categories 11-12: Funded/Consulting Projects
+    // Categories 11-12: Funded/Consulting Projects (currency slab)
     if (sl === 11 || sl === 12) {
       return (
         <div className="category-field">
-          <label>Total Funding Amount (in Lakhs)</label>
+          <label>Total Funding Amount (in Lakhs ₹)</label>
           <input
             type="number" min="0" step="0.01"
-            value={localValues.funding_lakhs ?? ''}
-            onChange={e => updateField('funding_lakhs', parseFloat(e.target.value) || 0)}
+            value={localValues.amount_lakhs ?? ''}
+            onChange={e => updateField('amount_lakhs', parseFloat(e.target.value) || 0)}
             disabled={!isDraft} placeholder="e.g. 5.5"
           />
         </div>
       );
     }
 
-    // Category 14: FDP organized (has days)
+    // ── SERVICE ──
+
+    // Category 14: FDP/Seminar/Workshop organized (days slab)
     if (sl === 14) {
       return (
         <div className="category-field">
@@ -469,7 +488,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Category 19: Institutional Services
+    // Category 19: Institutional/Departmental Services (role select)
     if (sl === 19) {
       return (
         <div className="category-field">
@@ -487,7 +506,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Category 23: Free text
+    // Category 23: Free text (any other contributions)
     if (sl === 23) {
       return (
         <div className="category-field">
@@ -535,16 +554,20 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       <div className="category-form-body">
         {renderInput()}
 
-        {/* Proof upload */}
+        {/* Proof upload — supports multi-file via maxFiles */}
         {isDraft && (
           <div className="category-upload">
             <FileUpload
               onFileSelect={(file) => onUpload(file)}
               uploading={uploading}
-              uploadedFile={entry?.proof_documents?.[0] ? {
-                name: entry.proof_documents[0].file_name,
-                size: entry.proof_documents[0].file_size,
-              } : null}
+              maxFiles={maxAttachments}
+              uploadedFiles={
+                entry?.proof_documents?.map((doc: any) => ({
+                  id: doc.id,
+                  name: doc.file_name,
+                  size: doc.file_size,
+                })) || []
+              }
             />
           </div>
         )}
