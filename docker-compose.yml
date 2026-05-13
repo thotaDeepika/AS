@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # ─── PostgreSQL Database ────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: appraisal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: appraisal_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d appraisal_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API Server ─────────────────────────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: appraisal-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres_dev_password@db:5432/appraisal_db?schema=public
+      DIRECT_URL: postgresql://postgres:postgres_dev_password@db:5432/appraisal_db?schema=public
+      JWT_SECRET: appraisal-rit-jwt-secret-change-in-production-2025
+      JWT_EXPIRES_IN: 24h
+      PORT: 3001
+      CLIENT_URL: http://localhost:5173
+      NODE_ENV: development
+      UPLOAD_DIR: ./uploads
+      MAX_FILE_SIZE_MB: 10
+    ports:
+      - '3001:3001'
+    volumes:
+      - uploads:/app/uploads
+
+  # ─── Frontend Dev Server ────────────────────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: appraisal-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      VITE_API_URL: http://server:3001
+    ports:
+      - '5173:5173'
+
+volumes:
+  pgdata:
+  uploads:
