@@ -1,34 +1,41 @@
-import { Request, Response, NextFunction } from 'express';
-
 export class AppError extends Error {
-  public statusCode: number;
-  public isOperational: boolean;
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
 
-  constructor(message: string, statusCode: number) {
+  constructor(message: string, statusCode: number = 500, isOperational = true) {
     super(message);
     this.statusCode = statusCode;
-    this.isOperational = true;
-    Error.captureStackTrace(this, this.constructor);
+    this.isOperational = isOperational;
+    Object.setPrototypeOf(this, AppError.prototype);
   }
 }
 
-export const errorHandler = (err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      success: false,
-      message: err.message,
-    });
+export class NotFoundError extends AppError {
+  constructor(resource: string = 'Resource') {
+    super(`${resource} not found`, 404);
   }
+}
 
-  console.error('Unhandled Error:', err);
-  return res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-  });
-};
+export class UnauthorizedError extends AppError {
+  constructor(message: string = 'Unauthorized') {
+    super(message, 401);
+  }
+}
 
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-};
+export class ForbiddenError extends AppError {
+  constructor(message: string = 'Forbidden') {
+    super(message, 403);
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string = 'Validation failed') {
+    super(message, 400);
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string = 'Resource already exists') {
+    super(message, 409);
+  }
+}

@@ -1,6 +1,3 @@
-// Prisma Schema for Faculty Appraisal & Increment Management System
-// Ramaiah Institute of Technology, Bangalore
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,7 +8,146 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─── ENUMS ──────────────────────────────────────────────────────────────────────
+model Department { 
+  id         String   @id @default(uuid())
+  name       String   @unique
+  code       String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  users      User[]
+
+  @@map("departments")
+}
+
+model User {
+  id               String        @id @default(uuid())
+  email            String        @unique
+  password_hash    String
+  name             String
+  role             Role          @default(FACULTY)
+  designation      Designation?
+  department_id    String
+  is_active        Boolean       @default(true)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+  applications     Application[] @relation("FacultyApplications")
+  assigned_reviews Application[] @relation("ReviewerAssignments")
+  audit_logs       AuditLog[]
+  reviews          Review[]
+  department       Department    @relation(fields: [department_id], references: [id])
+
+  @@map("users")
+}
+
+model Application {
+  id               String            @id @default(uuid())
+  faculty_id       String
+  academic_year    String
+  status           ApplicationStatus @default(DRAFT)
+  total_score      Decimal           @default(0) @db.Decimal(6, 2)
+  bonus_score      Decimal?          @db.Decimal(6, 2)
+  final_score      Decimal           @default(0) @db.Decimal(6, 2)
+  submitted_at     DateTime?
+  frozen_at        DateTime?
+  reviewer_id      String?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+  faculty          User              @relation("FacultyApplications", fields: [faculty_id], references: [id])
+  reviewer         User?             @relation("ReviewerAssignments", fields: [reviewer_id], references: [id])
+  category_entries CategoryEntry[]
+  reviews          Review[]
+
+  @@unique([faculty_id, academic_year])
+  @@map("applications")
+}
+
+model ScoringCategory {
+  id               String          @id @default(uuid())
+  sl_no            Int
+  section          ScoringSection
+  name             String
+  description      String?
+  input_type       String
+  input_config     Json?
+  is_active        Boolean         @default(true)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  category_entries CategoryEntry[]
+  scoring_rules    ScoringRule[]
+
+  @@map("scoring_categories")
+}
+
+model ScoringRule {
+  id            String          @id @default(uuid())
+  category_id   String
+  designation   Designation
+  max_weightage Decimal         @db.Decimal(6, 2)
+  formula       Json
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+  category      ScoringCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@unique([category_id, designation])
+  @@map("scoring_rules")
+}
+
+model CategoryEntry {
+  id               String          @id @default(uuid())
+  application_id   String
+  category_id      String
+  raw_value        Json
+  calculated_score Decimal         @default(0) @db.Decimal(6, 2)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  application      Application     @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  category         ScoringCategory @relation(fields: [category_id], references: [id])
+  proof_documents  ProofDocument[]
+
+  @@unique([application_id, category_id])
+  @@map("category_entries")
+}
+
+model ProofDocument {
+  id                String        @id @default(uuid())
+  category_entry_id String
+  file_name         String
+  file_path         String
+  file_size         Int
+  mime_type         String        @default("application/pdf")
+  uploaded_at       DateTime      @default(now())
+  category_entry    CategoryEntry @relation(fields: [category_entry_id], references: [id], onDelete: Cascade)
+
+  @@map("proof_documents")
+}
+
+model Review {
+  id               String         @id @default(uuid())
+  application_id   String
+  reviewer_user_id String
+  role_at_review   Role
+  decision         ReviewDecision
+  comments         String?
+  reviewed_at      DateTime       @default(now())
+  application      Application    @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  reviewer         User           @relation(fields: [reviewer_user_id], references: [id])
+
+  @@map("reviews")
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  user_id     String
+  action      AuditAction
+  entity_type String
+  entity_id   String?
+  details     Json?
+  ip_address  String?
+  created_at  DateTime    @default(now())
+  user        User        @relation(fields: [user_id], references: [id])
+
+  @@map("audit_logs")
+}
 
 enum Role {
   FACULTY
@@ -60,171 +196,14 @@ enum AuditAction {
   USER_CREATED
   USER_UPDATED
   SCORING_CONFIG_UPDATED
+  APPLICATION_HOD_REVIEWED
+  APPLICATION_REVIEWER_REVIEWED
+  APPLICATION_PRINCIPAL_REVIEWED
+  STATUS_CHANGED
 }
 
 enum ScoringSection {
   TEACHING
   RESEARCH
   SERVICE
-}
-
-// ─── MODELS ─────────────────────────────────────────────────────────────────────
-
-model Department {
-  id         String   @id @default(uuid())
-  name       String   @unique
-  code       String   @unique // e.g., "CSE", "ECE", "ISE"
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  // Relations
-  users User[]
-
-  @@map("departments")
-}
-
-model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  password_hash String
-  name          String
-  role          Role         @default(FACULTY)
-  designation   Designation? // Only applicable for Faculty
-  department_id String
-  is_active     Boolean      @default(true)
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
-
-  // Relations
-  department             Department    @relation(fields: [department_id], references: [id])
-  applications           Application[] @relation("FacultyApplications")
-  assigned_reviews       Application[] @relation("ReviewerAssignments")
-  reviews                Review[]
-  audit_logs             AuditLog[]
-
-  @@map("users")
-}
-
-model Application {
-  id            String            @id @default(uuid())
-  faculty_id    String
-  academic_year String            // e.g., "2025-2026"
-  status        ApplicationStatus @default(DRAFT)
-  total_score   Decimal           @default(0) @db.Decimal(6, 2)
-  bonus_score   Decimal?          @db.Decimal(6, 2)
-  final_score   Decimal           @default(0) @db.Decimal(6, 2)
-  submitted_at  DateTime?
-  frozen_at     DateTime?
-  reviewer_id   String?           // Assigned by Admin
-  created_at    DateTime          @default(now())
-  updated_at    DateTime          @updatedAt
-
-  // Relations
-  faculty          User            @relation("FacultyApplications", fields: [faculty_id], references: [id])
-  reviewer         User?           @relation("ReviewerAssignments", fields: [reviewer_id], references: [id])
-  category_entries CategoryEntry[]
-  reviews          Review[]
-
-  @@unique([faculty_id, academic_year]) // One application per faculty per year
-  @@map("applications")
-}
-
-model ScoringCategory {
-  id          String         @id @default(uuid())
-  sl_no       Int            // Display order (1-23)
-  section     ScoringSection // TEACHING, RESEARCH, or SERVICE
-  name        String         // e.g., "FCI Score"
-  description String?        @db.Text
-  input_type  String         // "percentage", "number", "currency_slab", "text", "composite"
-  input_config Json?         // Sub-fields, slab definitions, labels
-  is_active   Boolean        @default(true)
-  created_at  DateTime       @default(now())
-  updated_at  DateTime       @updatedAt
-
-  // Relations
-  scoring_rules    ScoringRule[]
-  category_entries CategoryEntry[]
-
-  @@map("scoring_categories")
-}
-
-model ScoringRule {
-  id            String      @id @default(uuid())
-  category_id   String
-  designation   Designation // Which designation this rule applies to
-  max_weightage Decimal     @db.Decimal(6, 2) // Max score obtainable
-  formula       Json        // Calculation rules: slabs, multipliers, percentages
-  created_at    DateTime    @default(now())
-  updated_at    DateTime    @updatedAt
-
-  // Relations
-  category ScoringCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
-
-  @@unique([category_id, designation]) // One rule per category per designation
-  @@map("scoring_rules")
-}
-
-model CategoryEntry {
-  id               String  @id @default(uuid())
-  application_id   String
-  category_id      String
-  raw_value        Json    // The faculty's input values
-  calculated_score Decimal @default(0) @db.Decimal(6, 2)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-
-  // Relations
-  application    Application     @relation(fields: [application_id], references: [id], onDelete: Cascade)
-  category       ScoringCategory @relation(fields: [category_id], references: [id])
-  proof_documents ProofDocument[]
-
-  @@unique([application_id, category_id]) // One entry per category per application
-  @@map("category_entries")
-}
-
-model ProofDocument {
-  id                String   @id @default(uuid())
-  category_entry_id String
-  file_name         String   // Original filename
-  file_path         String   // Server storage path
-  file_size         Int      // Bytes
-  mime_type         String   @default("application/pdf")
-  uploaded_at       DateTime @default(now())
-
-  // Relations
-  category_entry CategoryEntry @relation(fields: [category_entry_id], references: [id], onDelete: Cascade)
-
-  @@map("proof_documents")
-}
-
-model Review {
-  id              String         @id @default(uuid())
-  application_id  String
-  reviewer_user_id String
-  role_at_review  Role           // HOD, REVIEWER, or PRINCIPAL
-  decision        ReviewDecision
-  comments        String?        @db.Text
-  reviewed_at     DateTime       @default(now())
-
-  // Relations
-  application Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
-  reviewer    User        @relation(fields: [reviewer_user_id], references: [id])
-
-  @@map("reviews")
-}
-
-model AuditLog {
-  id          String      @id @default(uuid())
-  user_id     String
-  action      AuditAction
-  entity_type String      // "Application", "User", "ScoringCategory", etc.
-  entity_id   String?     // ID of affected entity
-  details     Json?       // Additional context
-  ip_address  String?
-  created_at  DateTime    @default(now())
-
-  // Relations
-  user User @relation(fields: [user_id], references: [id])
-
-  @@map("audit_logs")
 }
