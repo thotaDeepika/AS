@@ -11,6 +11,7 @@ import AssignReviewersPage from './pages/AssignReviewersPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import PrincipalDashboardPage from './pages/PrincipalDashboardPage';
 import AccountsDashboardPage from './pages/AccountsDashboardPage';
+import ReportsPage from './pages/ReportsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -24,18 +25,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) return <div className="page-loader"><div className="loader-spinner" /><p>Loading...</p></div>;
   if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
-}
-
-// Placeholder for Phase 6
-function PlaceholderPage({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="placeholder-page">
-      <div className="placeholder-icon">🚧</div>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      <span className="placeholder-badge">Coming in Phase 6</span>
-    </div>
-  );
 }
 
 function AppRoutes() {
@@ -53,7 +42,7 @@ function AppRoutes() {
         <Route path="/assign-reviewers" element={<AssignReviewersPage />} />
         <Route path="/principal-review" element={<PrincipalDashboardPage />} />
         <Route path="/accounts" element={<AccountsDashboardPage />} />
-        <Route path="/reports" element={<PlaceholderPage title="Reports" description="Generate and download PDF/Excel reports" />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/audit-logs" element={<AuditLogsPage />} />
       </Route>
 
@@ -71,3 +60,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

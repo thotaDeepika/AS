@@ -593,3 +593,321 @@ code { font-family:'JetBrains Mono',monospace; background:var(--bg-elevated); pa
   .accounts-stats { grid-template-columns:1fr 1fr; }
   .principal-detail-grid { grid-template-columns:1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PHASE 6: Animations, Reports Page, & UI Polish
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Global Animations ──────────────────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes slideUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+@keyframes scaleIn { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
+@keyframes shimmer { 0% { background-position:-400px 0; } 100% { background-position:400px 0; } }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+@keyframes slideDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes bounceIn { 0% { transform:scale(0.3); opacity:0; } 50% { transform:scale(1.05); } 70% { transform:scale(0.95); } 100% { transform:scale(1); opacity:1; } }
+
+.animate-fadeIn { animation:fadeIn 0.5s ease-out; }
+.animate-slideUp { animation:slideUp 0.5s ease-out both; }
+.animate-scaleIn { animation:scaleIn 0.4s ease-out; }
+.animate-slideDown { animation:slideDown 0.3s ease-out; }
+.animate-bounceIn { animation:bounceIn 0.6s ease-out; }
+
+/* ─── Skeleton Loading ───────────────────────────────────────────────────────── */
+.skeleton-block {
+  background:linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card) 50%, var(--bg-elevated) 75%);
+  background-size:800px 100%;
+  animation:shimmer 1.5s ease-in-out infinite;
+  border-radius:var(--radius-sm);
+  width:100%;
+}
+
+.reports-loading {
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  padding:20px 0;
+}
+
+/* ─── Enhanced Micro-Interactions ─────────────────────────────────────────── */
+.sidebar-link { transition:all 0.25s ease; position:relative; overflow:hidden; }
+.sidebar-link::after { content:''; position:absolute; left:0; top:0; width:0; height:100%; background:linear-gradient(90deg,rgba(99,102,241,0.08),transparent); transition:width 0.3s ease; border-radius:inherit; }
+.sidebar-link:hover::after { width:100%; }
+.sidebar-link.active::after { width:100%; background:linear-gradient(90deg,rgba(99,102,241,0.12),transparent); }
+
+/* Card hover lift */
+.stat-card,
+.report-download-card,
+.dept-breakdown-card {
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.stat-card:hover {
+  transform:translateY(-2px);
+  box-shadow:0 8px 25px rgba(0,0,0,0.25);
+}
+
+/* Button press effect */
+button:active:not(:disabled) { transform:scale(0.97); }
+
+/* Focus-visible for accessibility */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+
+/* ─── Reports Page ───────────────────────────────────────────────────────────── */
+.reports-page { display:flex; flex-direction:column; gap:28px; }
+.reports-page .page-header h1 { font-size:24px; font-weight:800; }
+.reports-page .page-subtitle { font-size:14px; color:var(--text-secondary); margin-top:4px; }
+
+/* Reports Section */
+.reports-section {
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:28px;
+}
+.reports-section-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:20px;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.reports-section-header h2 { font-size:18px; font-weight:700; }
+.reports-section-header .text-muted { font-size:13px; color:var(--text-muted); margin-top:2px; }
+
+/* Filters row */
+.reports-filters {
+  display:flex;
+  gap:16px;
+  margin-bottom:24px;
+  flex-wrap:wrap;
+}
+.reports-filters .filter-group { display:flex; flex-direction:column; gap:6px; }
+.reports-filters label { font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+.reports-filters select {
+  padding:8px 14px;
+  background:var(--bg-elevated);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  color:var(--text-primary);
+  font-size:13px;
+  min-width:180px;
+  cursor:pointer;
+  transition:border-color var(--transition);
+}
+.reports-filters select:hover { border-color:var(--accent); }
+
+/* Download Cards */
+.reports-download-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.report-download-card {
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:20px 24px;
+  background:var(--bg-elevated);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  cursor:pointer;
+  transition:all 0.3s ease;
+  text-align:left;
+  width:100%;
+  color:var(--text-primary);
+}
+.report-download-card:hover:not(:disabled) {
+  border-color:var(--accent);
+  background:rgba(99,102,241,0.05);
+  transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(99,102,241,0.12);
+}
+.report-download-card:disabled {
+  opacity:0.6;
+  cursor:wait;
+}
+.download-icon {
+  width:48px;
+  height:48px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  flex-shrink:0;
+}
+.pdf-icon { background:rgba(239,68,68,0.1); }
+.excel-icon { background:rgba(16,185,129,0.1); }
+.download-info { flex:1; }
+.download-info h3 { font-size:15px; font-weight:700; }
+.download-info p { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.download-badge {
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:12px;
+  font-weight:600;
+  background:rgba(239,68,68,0.1);
+  color:#ef4444;
+  border:1px solid rgba(239,68,68,0.3);
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.download-badge.excel {
+  background:rgba(16,185,129,0.1);
+  color:#10b981;
+  border-color:rgba(16,185,129,0.3);
+}
+
+/* Search Box */
+.search-box input {
+  padding:8px 14px;
+  background:var(--bg-elevated);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  color:var(--text-primary);
+  font-size:13px;
+  min-width:240px;
+  transition:border-color var(--transition);
+}
+.search-box input:focus { border-color:var(--accent); outline:none; }
+.search-box input::placeholder { color:var(--text-muted); }
+
+/* Reports Table */
+.reports-table-wrapper {
+  overflow-x:auto;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+}
+.reports-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+.reports-table thead th {
+  padding:10px 14px;
+  text-align:left;
+  background:var(--bg-elevated);
+  font-weight:600;
+  font-size:12px;
+  color:var(--text-secondary);
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+.reports-table tbody tr {
+  border-bottom:1px solid rgba(42,42,58,0.5);
+  transition:background 0.15s ease;
+}
+.reports-table tbody tr:hover { background:var(--bg-elevated); }
+.reports-table tbody td { padding:10px 14px; }
+
+.faculty-name { font-weight:600; }
+.dept-badge {
+  display:inline-block;
+  padding:2px 8px;
+  background:rgba(99,102,241,0.1);
+  color:var(--accent-hover);
+  border-radius:4px;
+  font-size:11px;
+  font-weight:600;
+}
+.year-cell { font-weight:600; font-variant-numeric:tabular-nums; }
+.score-cell { font-weight:700; font-variant-numeric:tabular-nums; color:var(--accent-hover); }
+
+/* Status pills */
+.status-pill {
+  display:inline-block;
+  padding:3px 10px;
+  border-radius:12px;
+  font-size:11px;
+  font-weight:600;
+  white-space:nowrap;
+}
+.status-draft { background:rgba(148,148,168,0.1); color:var(--text-muted); border:1px solid rgba(148,148,168,0.2); }
+.status-submitted { background:rgba(59,130,246,0.1); color:#60a5fa; border:1px solid rgba(59,130,246,0.2); }
+.status-hod-reviewed { background:rgba(99,102,241,0.1); color:var(--accent-hover); border:1px solid rgba(99,102,241,0.2); }
+.status-reviewer-assigned { background:rgba(245,158,11,0.1); color:#fbbf24; border:1px solid rgba(245,158,11,0.2); }
+.status-reviewer-reviewed { background:rgba(139,92,246,0.1); color:#a78bfa; border:1px solid rgba(139,92,246,0.2); }
+.status-principal-reviewed { background:rgba(16,185,129,0.1); color:#34d399; border:1px solid rgba(16,185,129,0.2); }
+.status-frozen { background:rgba(6,182,212,0.1); color:#22d3ee; border:1px solid rgba(6,182,212,0.2); }
+.status-sent-to-accounts { background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); }
+
+/* Download Button */
+.btn-download-pdf {
+  padding:6px 14px;
+  background:rgba(239,68,68,0.1);
+  color:#ef4444;
+  border:1px solid rgba(239,68,68,0.3);
+  border-radius:var(--radius-sm);
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all var(--transition);
+  white-space:nowrap;
+}
+.btn-download-pdf:hover:not(:disabled) {
+  background:rgba(239,68,68,0.2);
+  border-color:#ef4444;
+}
+.btn-download-pdf:disabled {
+  opacity:0.4;
+  cursor:not-allowed;
+}
+
+/* Empty State */
+.reports-empty {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  padding:60px 20px;
+  text-align:center;
+}
+.reports-empty .empty-icon { font-size:48px; }
+.reports-empty p { font-size:14px; color:var(--text-muted); }
+
+/* Stats Row */
+.reports-stats {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+}
+.reports-stats .stat-card {
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  text-align:center;
+}
+.reports-stats .stat-value {
+  font-size:28px;
+  font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent-hover));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.reports-stats .stat-label {
+  font-size:12px;
+  color:var(--text-muted);
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+
+/* ─── Responsive Reports ─────────────────────────────────────────────────── */
+@media (max-width:768px) {
+  .reports-download-grid { grid-template-columns:1fr; }
+  .reports-stats { grid-template-columns:1fr 1fr; }
+  .reports-section-header { flex-direction:column; }
+  .search-box input { min-width:100%; }
+  .report-download-card { flex-direction:column; text-align:center; }
+}

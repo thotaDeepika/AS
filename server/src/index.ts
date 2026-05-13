@@ -12,6 +12,7 @@ import departmentRoutes from './routes/departments.js';
 import applicationRoutes from './routes/applications.js';
 import reviewRoutes from './routes/reviews.js';
 import adminRoutes from './routes/admin.js';
+import reportRoutes from './routes/reports.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reports', reportRoutes);
 
 // ─── Error Handler (must be last) ─────────────────────────────────────────────
 

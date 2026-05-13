@@ -1,72 +1,98 @@
-# Faculty Appraisal & Increment Management System
+# 🎓 RIT Faculty Appraisal System
 
-> Ramaiah Institute of Technology, Bangalore
+A comprehensive web-based faculty performance appraisal system designed for Rashtreeya Vidyalaya Institute of Technology (RVIT). Automates the entire appraisal lifecycle — from faculty self-assessment through HOD review, external review, Principal approval, and Accounts processing.
 
-A comprehensive web-based system for managing annual faculty appraisals and increment processing with role-based access control, automated scoring, and multi-level review workflows.
+## ✨ Features
 
-## Tech Stack
+### Multi-Role Workflow
+- **Faculty** — Submit appraisal forms with 23 scoring categories, upload proof documents
+- **HOD** — Review and recommend/reject department applications
+- **Reviewer** — External expert review with comments
+- **Principal** — Final approval authority
+- **Admin** — Full system management (users, scoring, workflow pipeline, audit logs)
+- **Accounts** — Process approved appraisals for salary increments
+
+### Core Capabilities
+- 🔐 **JWT Authentication** with role-based access control (RBAC)
+- 📊 **Automated Score Calculation** — 23 categories across Teaching, Research, Service
+- 📄 **PDF Reports** — Individual appraisal forms + consolidated department reports
+- 📈 **Excel Exports** — 3-sheet workbook with summary, detail, and category breakdown
+- 🔍 **Audit Trail** — Full logging of all system actions
+- 📁 **File Upload** — PDF proof documents per scoring category
+- 🎨 **Dark Mode UI** — Premium design with animations and micro-interactions
+
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19 + TypeScript + Vite + Tailwind CSS v4 |
+| Frontend | React 18 + TypeScript, Vite |
+| Styling | Vanilla CSS with design system, Inter font |
 | Backend | Express.js + TypeScript |
 | ORM | Prisma |
 | Database | PostgreSQL (Supabase) |
-| Auth | JWT + bcrypt |
+| Auth | JWT (bcrypt + jsonwebtoken) |
+| Reports | PDFKit (PDF), ExcelJS (Excel) |
+| DevOps | Docker Compose |
 
-## Project Structure
-
-```
-├── client/          # React frontend (Vite)
-├── server/          # Express backend
-├── prisma/          # Prisma schema
-├── docs/            # Project documentation
-├── package.json     # Root workspace config
-└── .env.example     # Environment template
-```
-
-## User Roles
-
-1. **Faculty** — Submit appraisal applications with proof documents
-2. **HOD** — Review departmental submissions, recommend/not-recommend
-3. **Admin** — Route applications, assign reviewers, manage scoring config
-4. **Reviewer** — Verify proofs and scoring for cross-department objectivity
-5. **Principal** — Final approval and freeze
-6. **Accounts** — View frozen applications for salary processing
-
-## Getting Started
+## 🚀 Quick Start
 
 ```bash
-# 1. Clone
+# Clone & install
 git clone https://github.com/27-MANISH/appraisal-system.git
 cd appraisal-system
+npm install && cd server && npm install && cd ../client && npm install && cd ..
 
-# 2. Install dependencies
-npm install --workspaces
-npm install
-
-# 3. Configure environment
+# Configure
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit .env with your database credentials
 
-# 4. Generate Prisma client
-npx prisma generate --schema=./prisma/schema.prisma
+# Database setup
+npx prisma generate && npx prisma db push
+npx tsx server/src/seed.ts
 
-# 5. Run development servers
+# Run
 npm run dev
 ```
 
-## Default Login Credentials (Dev)
+**Default login:** `admin@rit.edu` / `Admin@123`
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@rit.edu | Admin@123 |
-| Principal | principal@rit.edu | Admin@123 |
-| HOD (CSE) | hod.cse@rit.edu | Admin@123 |
-| Faculty | faculty1.cse@rit.edu | Admin@123 |
-| Reviewer | reviewer.ece@rit.edu | Admin@123 |
-| Accounts | accounts@rit.edu | Admin@123 |
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment instructions.
 
-## License
+## 📂 Project Structure
 
-Private — Ramaiah Institute of Technology
+```
+├── client/                 # React + Vite frontend
+│   └── src/
+│       ├── components/     # Reusable UI components
+│       ├── context/        # Auth context
+│       ├── lib/            # API client
+│       └── pages/          # Route pages (10 pages)
+├── server/                 # Express.js backend
+│   └── src/
+│       ├── lib/            # Prisma, errors, upload, score engine, report generator
+│       ├── middleware/     # Auth, error handler
+│       └── routes/         # Auth, users, departments, applications, reviews, admin, reports
+├── prisma/                 # Schema & migrations
+├── docs/                   # Architecture documentation
+├── docker-compose.yml      # Local development containers
+└── .env.example            # Environment template
+```
+
+## 📋 Appraisal Workflow
+
+```
+Faculty (Draft → Submit) → HOD Review → Admin Assigns Reviewer → Reviewer Review
+    → Admin Forwards → Principal Approval → Admin Freezes → Accounts Processing
+```
+
+## 📖 Documentation
+
+- [Deployment Guide](docs/DEPLOYMENT.md) — Setup, configuration, production deployment
+- [Workflow](docs/FINAL_WORKFLOW.md) — Detailed appraisal workflow states
+- [Scoring Rules](docs/FINAL_SCORING.md) — All 23 categories and designation rules
+- [RBAC](docs/FINAL_RBAC.md) — Role permissions matrix
+- [Database Schema](docs/FINAL_DB_SCHEMA.md) — Complete entity-relationship design
+
+## 📄 License
+
+This project is developed for RIT internal use.

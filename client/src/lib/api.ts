@@ -133,3 +133,16 @@ export const adminApi = {
   sendToAccounts: (appId: string) =>
     api.post('/admin/send-to-accounts', { application_ids: [appId] }),
 };
+
+// ─── Reports API ──────────────────────────────────────────────────────────────
+
+export const reportsApi = {
+  downloadAppraisalPDF: (appId: string) =>
+    api.get(`/reports/appraisal/${appId}/pdf`, { responseType: 'blob' }),
+
+  downloadConsolidatedPDF: (params?: Record<string, string>) =>
+    api.get('/reports/consolidated/pdf', { params, responseType: 'blob' }),
+
+  downloadExcel: (params?: Record<string, string>) =>
+    api.get('/reports/consolidated/excel', { params, responseType: 'blob' }),
+};
