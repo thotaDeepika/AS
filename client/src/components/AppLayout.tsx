@@ -30,6 +30,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'PRINCIPAL', 'HOD', 'FACULTY', 'REVIEWER', 'ACCOUNTS'] },
   { path: '/applications', label: 'My Application', icon: '📝', roles: ['FACULTY'] },
+  { path: '/history', label: 'Submission History', icon: '📜', roles: ['FACULTY'] },
   { path: '/applications', label: 'Applications', icon: '📋', roles: ['ADMIN', 'HOD', 'PRINCIPAL', 'REVIEWER', 'ACCOUNTS'] },
   { path: '/users', label: 'User Management', icon: '👥', roles: ['ADMIN'] },
   { path: '/scoring', label: 'Scoring Config', icon: '⚙️', roles: ['ADMIN'] },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { applicationsApi, reviewsApi } from '../lib/api';
+import { applicationsApi, reviewsApi, getFileUrl } from '../lib/api';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import ScoreCard from '../components/ScoreCard';
@@ -28,6 +28,7 @@ export default function ReviewsPage() {
   const [reviewing, setReviewing] = useState(false);
   const [decision, setDecision] = useState('RECOMMENDED');
   const [comments, setComments] = useState('');
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   const loadApplications = async () => {
@@ -49,20 +50,31 @@ export default function ReviewsPage() {
     try {
       const res = await applicationsApi.getById(app.id);
       setSelectedApp(res.data.data.application);
+      if (user?.role === 'PRINCIPAL') {
+        setDecision('APPROVED');
+      } else {
+        setDecision('RECOMMENDED');
+      }
     } catch (err: any) {
       showToast('error', err.response?.data?.error || 'Failed to load application');
     }
   };
 
   const handleSubmitReview = async () => {
-    if (!selectedApp) return;
+    if (!comments.trim()) return;
     setReviewing(true);
     try {
-      await reviewsApi.submit(selectedApp.id, decision, comments);
-      showToast('success', 'Review submitted successfully');
-      setSelectedApp(null);
-      setDecision('RECOMMENDED');
+      let signaturePath = undefined;
+      if (signatureFile) {
+        const uploadRes = await reviewsApi.uploadSignature(signatureFile);
+        signaturePath = uploadRes.data.data.file_path;
+      }
+      const res = await reviewsApi.submit(selectedApp.id, decision, comments, undefined, signaturePath);
+      showToast('success', res.data.message);
       setComments('');
+      setSignatureFile(null);
+      // Reload application
+      handleViewDetail(selectedApp);
       loadApplications();
     } catch (err: any) {
       showToast('error', err.response?.data?.error || 'Review submission failed');
@@ -166,7 +178,18 @@ export default function ReviewsPage() {
                   <span className="entry-section">{entry.category.section}</span>
                 </div>
                 <span className="entry-score">
-                  {entry.calculated_score !== null ? Number(entry.calculated_score).toFixed(1) : '—'}
+                  {user?.role === 'REVIEWER' && selectedApp.status === 'REVIEWER_ASSIGNED' && selectedApp.reviewer_id === user.id ? (
+                    <EntryScoreInput
+                      appId={selectedApp.id}
+                      categoryId={entry.category_id}
+                      initialScore={entry.reviewer_score !== null ? entry.reviewer_score : entry.calculated_score}
+                      onScoreUpdated={(data) => setSelectedApp((prev: any) => ({ ...prev, total_score: data.total_score, section_scores: data.section_scores }))}
+                    />
+                  ) : (
+                    entry.reviewer_score !== null 
+                      ? <><span title="Reviewer Adjusted Score" style={{color: '#f59e0b', fontWeight: 'bold'}}>{Number(entry.reviewer_score).toFixed(1)}</span> <span style={{textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8'}}>{Number(entry.calculated_score).toFixed(1)}</span></>
+                      : (entry.calculated_score !== null ? Number(entry.calculated_score).toFixed(1) : '—')
+                  )}
                 </span>
               </div>
               <div className="entry-values">
@@ -179,7 +202,9 @@ export default function ReviewsPage() {
               {entry.proof_documents?.length > 0 && (
                 <div className="entry-docs">
                   {entry.proof_documents.map((doc: any) => (
-                    <span key={doc.id} className="doc-chip">📄 {doc.file_name}</span>
+                    <a key={doc.id} href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block' }}>
+                      📄 {doc.file_name}
+                    </a>
                   ))}
                 </div>
               )}
@@ -213,10 +238,26 @@ export default function ReviewsPage() {
               <div className="form-group">
                 <label>Decision</label>
                 <select value={decision} onChange={e => setDecision(e.target.value)}>
-                  <option value="RECOMMENDED">✅ Recommended</option>
-                  <option value="NOT_RECOMMENDED">❌ Not Recommended</option>
+                  {user?.role === 'HOD' ? (
+                    <>
+                      <option value="RECOMMENDED">✅ Recommended</option>
+                      <option value="NOT_RECOMMENDED">❌ Not Recommended</option>
+                      <option value="REVERTED">↩ Revert to Faculty (Request Changes)</option>
+                    </>
+                  ) : user?.role === 'PRINCIPAL' ? (
+                    <>
+                      <option value="APPROVED">✅ Approved</option>
+                      <option value="REJECTED">❌ Rejected</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="RECOMMENDED">✅ Recommended</option>
+                      <option value="NOT_RECOMMENDED">❌ Not Recommended</option>
+                    </>
+                  )}
                 </select>
               </div>
+              {/* Removed overall Reviewer Score input as per requirements */}
               <div className="form-group">
                 <label>Comments</label>
                 <textarea
@@ -225,6 +266,16 @@ export default function ReviewsPage() {
                   placeholder="Add your review comments..."
                   rows={4}
                 />
+              </div>
+              <div className="form-group">
+                <label>Signature (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg"
+                  onChange={e => setSignatureFile(e.target.files?.[0] || null)}
+                  style={{ display: 'block', marginTop: '0.5rem' }}
+                />
+                {signatureFile && <span className="char-count">✓ {signatureFile.name} attached</span>}
               </div>
               <button className="btn-primary" onClick={handleSubmitReview} disabled={reviewing || !comments.trim()}>
                 {reviewing ? 'Submitting...' : 'Submit Review'}
@@ -261,4 +312,36 @@ function canReview(role: string, status: string): boolean {
   if (role === 'REVIEWER' && status === 'REVIEWER_ASSIGNED') return true;
   if (role === 'PRINCIPAL' && status === 'REVIEWER_REVIEWED') return true;
   return false;
+}
+
+function EntryScoreInput({ appId, categoryId, initialScore, onScoreUpdated }: { appId: string, categoryId: string, initialScore: any, onScoreUpdated: (data: any) => void }) {
+  const [val, setVal] = useState(initialScore !== null ? Number(initialScore).toFixed(1) : '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const res = await reviewsApi.updateEntryScore(appId, categoryId, val === '' ? '' : Number(val));
+      onScoreUpdated(res.data.data);
+    } catch (err) {
+      console.error(err);
+      // fallback to initial
+      setVal(initialScore !== null ? Number(initialScore).toFixed(1) : '');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      value={val}
+      onChange={e => setVal(e.target.value)}
+      onBlur={handleSave}
+      onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+      disabled={saving}
+      style={{ width: '80px', padding: '4px', textAlign: 'right', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+      title="Edit Score"
+    />
+  );
 }

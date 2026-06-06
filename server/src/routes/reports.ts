@@ -16,26 +16,26 @@ router.get(
     try {
       const user = req.user!;
       const application = await prisma.application.findUnique({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         include: { faculty: { select: { id: true, department_id: true } } },
       });
 
       if (!application) throw new NotFoundError('Application');
 
       // Access control: Faculty can only download their own
-      if (user.role === Role.FACULTY && application.faculty.id !== user.id) {
+      if (user.role === Role.FACULTY && (application as any).faculty.id !== user.id) {
         throw new ForbiddenError('Cannot download another faculty\'s report');
       }
-      if (user.role === Role.HOD && application.faculty.department_id !== user.department_id) {
+      if (user.role === Role.HOD && (application as any).faculty.department_id !== user.department_id) {
         throw new ForbiddenError('Cannot access application outside your department');
       }
 
-      const pdfStream = await generateAppraisalPDF(application.id);
+      const pdfBuffer = await generateAppraisalPDF(application.id, user.role);
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="appraisal_${application.academic_year}_${req.params.id.slice(0, 8)}.pdf"`);
+      res.setHeader('Content-Disposition', `attachment; filename="appraisal_${application.academic_year}_${(req.params.id as string).slice(0, 8)}.pdf"`);
 
-      pdfStream.pipe(res);
+      res.send(pdfBuffer);
     } catch (error) {
       next(error);
     }
@@ -49,11 +49,12 @@ router.get(
   authorize(Role.ADMIN, Role.PRINCIPAL, Role.ACCOUNTS),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { academic_year, department_id } = req.query;
+      const academic_year = req.query.academic_year as string | undefined;
+      const department_id = req.query.department_id as string | undefined;
 
       const pdfStream = await generateConsolidatedPDF({
-        academic_year: academic_year as string | undefined,
-        department_id: department_id as string | undefined,
+        academic_year,
+        department_id,
       });
 
       const filename = `consolidated_report${academic_year ? `_${academic_year}` : ''}.pdf`;
@@ -74,11 +75,12 @@ router.get(
   authorize(Role.ADMIN, Role.PRINCIPAL, Role.ACCOUNTS),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { academic_year, department_id } = req.query;
+      const academic_year = req.query.academic_year as string | undefined;
+      const department_id = req.query.department_id as string | undefined;
 
       const workbook = await generateExcelReport({
-        academic_year: academic_year as string | undefined,
-        department_id: department_id as string | undefined,
+        academic_year,
+        department_id,
       });
 
       const filename = `appraisal_report${academic_year ? `_${academic_year}` : ''}.xlsx`;

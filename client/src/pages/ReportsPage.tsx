@@ -7,6 +7,7 @@ interface Application {
   academic_year: string;
   status: string;
   total_score: number;
+  reviewer_score?: number | null;
   faculty: {
     name: string;
     department: { name: string; code: string };
@@ -43,6 +44,7 @@ export default function ReportsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const isFaculty = user?.role === 'FACULTY';
+  const isAdmin = user?.role === 'ADMIN';
   const canConsolidate = ['ADMIN', 'PRINCIPAL', 'ACCOUNTS'].includes(user?.role || '');
 
   useEffect(() => {
@@ -250,6 +252,7 @@ export default function ReportsPage() {
                   <th>Academic Year</th>
                   <th>Status</th>
                   <th>Score</th>
+                  {isAdmin && <th>Reviewers Score</th>}
                   <th>Action</th>
                 </tr>
               </thead>
@@ -266,6 +269,11 @@ export default function ReportsPage() {
                       </span>
                     </td>
                     <td className="score-cell">{Number(app.total_score).toFixed(1)}</td>
+                    {isAdmin && (
+                      <td className="score-cell">
+                        {app.reviewer_score != null ? Number(app.reviewer_score).toFixed(1) : '—'}
+                      </td>
+                    )}
                     <td>
                       <button
                         className="btn-download-pdf"

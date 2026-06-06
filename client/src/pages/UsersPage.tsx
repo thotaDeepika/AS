@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { usersApi, departmentsApi } from '../lib/api';
+import { usersApi, departmentsApi, adminApi } from '../lib/api';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 
@@ -10,6 +10,7 @@ interface User {
   role: string;
   designation: string | null;
   is_active: boolean;
+  joining_date: string | null;
   created_at: string;
   department: { id: string; name: string; code: string };
 }
@@ -34,7 +35,7 @@ export default function UsersPage() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [form, setForm] = useState({ email: '', name: '', role: 'FACULTY', designation: '', department_id: '', password: '' });
+  const [form, setForm] = useState({ email: '', name: '', role: 'FACULTY', designation: '', department_id: '', password: '', joining_date: '' });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -71,7 +72,7 @@ export default function UsersPage() {
 
   const openCreateModal = () => {
     setEditingUser(null);
-    setForm({ email: '', name: '', role: 'FACULTY', designation: '', department_id: departments[0]?.id || '', password: '' });
+    setForm({ email: '', name: '', role: 'FACULTY', designation: '', department_id: departments[0]?.id || '', password: '', joining_date: '' });
     setShowModal(true);
   };
 
@@ -84,6 +85,7 @@ export default function UsersPage() {
       designation: user.designation || '',
       department_id: user.department.id,
       password: '',
+      joining_date: user.joining_date ? new Date(user.joining_date).toISOString().split('T')[0] : '',
     });
     setShowModal(true);
   };
@@ -95,8 +97,9 @@ export default function UsersPage() {
         await usersApi.update(editingUser.id, {
           name: form.name,
           role: form.role,
-          designation: form.role === 'FACULTY' && form.designation ? form.designation : null,
+          designation: ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
           department_id: form.department_id,
+          joining_date: form.joining_date ? new Date(form.joining_date).toISOString() : null,
         });
         showToast('success', `User "${form.name}" updated successfully`);
       } else {
@@ -104,8 +107,9 @@ export default function UsersPage() {
           email: form.email,
           name: form.name,
           role: form.role,
-          designation: form.role === 'FACULTY' && form.designation ? form.designation : null,
+          designation: ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
           department_id: form.department_id,
+          joining_date: form.joining_date ? new Date(form.joining_date).toISOString() : null,
           password: form.password || undefined,
         });
         showToast('success', `User "${form.name}" created successfully`);
@@ -126,6 +130,17 @@ export default function UsersPage() {
       loadUsers(pagination.page);
     } catch (err: any) {
       showToast('error', err.response?.data?.error || 'Failed to update status');
+    }
+  };
+
+  const handleOverride = async (userRecord: User, action: 'EDIT' | 'OPEN') => {
+    const actionText = action === 'EDIT' ? 'force edit an existing application' : 'open a new application early';
+    if (!confirm(`Are you sure you want to ${actionText} for ${userRecord.name}?`)) return;
+    try {
+      const res = await adminApi.overrideApplication(userRecord.id, action);
+      showToast('success', res.data.message || 'Action completed successfully');
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || `Failed to ${action === 'EDIT' ? 'override application access' : 'open new application'}`);
     }
   };
 
@@ -158,6 +173,11 @@ export default function UsersPage() {
       render: (row: User) => row.designation ? row.designation.replace(/_/g, ' ') : '—',
     },
     {
+      key: 'joining_date',
+      header: 'Joining Date',
+      render: (row: User) => row.joining_date ? new Date(row.joining_date).toLocaleDateString() : '—',
+    },
+    {
       key: 'status',
       header: 'Status',
       render: (row: User) => (
@@ -179,6 +199,26 @@ export default function UsersPage() {
           >
             {row.is_active ? 'Deactivate' : 'Activate'}
           </button>
+          {row.role === 'FACULTY' && (
+            <>
+              <button
+                className="btn-small btn-secondary"
+                title="Force open editing for an existing application"
+                onClick={() => handleOverride(row, 'EDIT')}
+                style={{ marginLeft: '4px' }}
+              >
+                Allow App Edit
+              </button>
+              <button
+                className="btn-small btn-secondary"
+                title="Open a new application for the user early"
+                onClick={() => handleOverride(row, 'OPEN')}
+                style={{ marginLeft: '4px' }}
+              >
+                Open App
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -253,6 +293,14 @@ export default function UsersPage() {
                   placeholder="Dr. John Doe"
                 />
               </div>
+              <div className="form-group">
+                <label>Joining Date</label>
+                <input
+                  type="date"
+                  value={form.joining_date}
+                  onChange={e => setForm({ ...form, joining_date: e.target.value })}
+                />
+              </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Role</label>
@@ -267,7 +315,7 @@ export default function UsersPage() {
                   </select>
                 </div>
               </div>
-              {form.role === 'FACULTY' && (
+              {['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && (
                 <div className="form-group">
                   <label>Designation</label>
                   <select value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })}>

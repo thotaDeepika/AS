@@ -14,9 +14,13 @@ import reviewRoutes from './routes/reviews.js';
 import adminRoutes from './routes/admin.js';
 import reportRoutes from './routes/reports.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initAppraisalReminderJob } from './jobs/appraisalReminder.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Initialize scheduled background jobs
+initAppraisalReminderJob();
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 
@@ -28,7 +32,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files statically
-app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 

@@ -1,0 +1,1 @@
+import('./dist/lib/email.js').then(m => m.sendEmail('yasil78431@fanchatu.com', 'New Appraisal Application Submitted - facultyy', 'Dear HOD,<br><br>An application is received from facultyy for the academic year 2026-2027.<br>You have one application to be reviewed.').then(() => setTimeout(()=>process.exit(0), 2000)));

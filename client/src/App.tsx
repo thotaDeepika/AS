@@ -4,6 +4,7 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ApplicationsPage from './pages/ApplicationsPage';
+import SubmissionHistoryPage from './pages/SubmissionHistoryPage';
 import ReviewsPage from './pages/ReviewsPage';
 import UsersPage from './pages/UsersPage';
 import ScoringPage from './pages/ScoringPage';
@@ -36,6 +37,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/applications" element={<ApplicationsPage />} />
+        <Route path="/history" element={<SubmissionHistoryPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/scoring" element={<ScoringPage />} />
         <Route path="/reviews" element={<ReviewsPage />} />

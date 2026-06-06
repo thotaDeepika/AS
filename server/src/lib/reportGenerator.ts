@@ -3,6 +3,11 @@ import ExcelJS from 'exceljs';
 import prisma from './prisma.js';
 import { ApplicationStatus } from '@prisma/client';
 import { PassThrough } from 'stream';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import { PDFDocument as PDFLibDoc } from 'pdf-lib';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,7 +41,7 @@ function formatDate(d: Date | null | undefined): string {
 
 // ─── Individual Appraisal PDF ──────────────────────────────────────────────────
 
-export async function generateAppraisalPDF(applicationId: string): Promise<PassThrough> {
+export async function generateAppraisalPDF(applicationId: string, userRole: string): Promise<Buffer> {
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
     include: {
@@ -49,6 +54,7 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
       category_entries: {
         include: {
           category: { select: { sl_no: true, section: true, name: true } },
+          proof_documents: true,
         },
         orderBy: { category: { sl_no: 'asc' } },
       },
@@ -62,23 +68,34 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
   if (!app) throw new Error('Application not found');
 
   const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
-  const stream = new PassThrough();
-  doc.pipe(stream);
+  const pdfBufferPromise = new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+  });
 
-  const primaryColor = '#4f46e5';
-  const darkText = '#1e293b';
-  const mutedText = '#64748b';
-  const lineColor = '#e2e8f0';
+  const primaryColor = '#000000';
+  const darkText = '#000000';
+  const mutedText = '#333333';
+  const lineColor = '#cccccc';
 
   // ── Header ──
-  doc.rect(0, 0, doc.page.width, 100).fill(primaryColor);
-  doc.fill('#ffffff')
+  doc.rect(0, 0, doc.page.width, 100).fill('#ffffff');
+  doc.fill('#000000')
     .fontSize(22).font('Helvetica-Bold')
     .text('FACULTY APPRAISAL FORM', 50, 25, { align: 'center' });
   doc.fontSize(11).font('Helvetica')
     .text('Ramaiah Institute of Technology', 50, 52, { align: 'center' });
   doc.fontSize(10)
     .text(`Academic Year: ${app.academic_year}`, 50, 70, { align: 'center' });
+
+  try {
+    const logoPath = path.join(__dirname, 'logo.png');
+    doc.image(logoPath, doc.page.width - 120, 20, { width: 70 });
+  } catch (err) {
+    console.error('Logo not found', err);
+  }
 
   doc.moveDown(2);
   let y = 120;
@@ -160,7 +177,7 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
 
     if (entry.category.section !== currentSection) {
       currentSection = entry.category.section;
-      doc.rect(50, y, doc.page.width - 100, 16).fill('#eef2ff');
+      doc.rect(50, y, doc.page.width - 100, 16).fill('#e5e7eb');
       doc.fill(primaryColor).fontSize(8).font('Helvetica-Bold')
         .text(sectionLabels[currentSection] || currentSection, 55, y + 4);
       y += 18;
@@ -172,7 +189,7 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
       String(entry.category.sl_no),
       entry.category.name,
       entry.category.section,
-      Number(entry.calculated_score).toFixed(1),
+      entry.reviewer_score !== null ? Number(entry.reviewer_score).toFixed(1) : Number(entry.calculated_score).toFixed(1),
       '—',
     ];
     rowData.forEach((val, i) => {
@@ -183,12 +200,50 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
     y += 16;
     doc.moveTo(50, y).lineTo(doc.page.width - 50, y).lineWidth(0.3).stroke(lineColor);
     y += 2;
+
+    // Render documents and descriptions
+    const rawVal = entry.raw_value as any || {};
+    const count = (rawVal.count || 0) + (rawVal.books || 0) + (rawVal.chapters || 0);
+    const hasGlobalDocs = entry.proof_documents.some((d: any) => d.item_index == null);
+
+    if (count > 0 || hasGlobalDocs || rawVal.description) {
+      y += 4;
+      doc.fill(mutedText).fontSize(7).font('Helvetica-Bold');
+      
+      if (rawVal.description) {
+        doc.text(`Description: ${rawVal.description}`, 65, y, { width: doc.page.width - 130 });
+        y += doc.heightOfString(`Description: ${rawVal.description}`, { width: doc.page.width - 130 }) + 2;
+      }
+
+      for (let i = 0; i < count; i++) {
+        if (y > doc.page.height - 40) { doc.addPage(); y = 50; }
+        const itemDesc = rawVal[`item_desc_${i}`] || 'No description provided';
+        const itemDoc = entry.proof_documents.find((d: any) => d.item_index === i);
+        const docText = itemDoc ? `Attached: ${itemDoc.file_name}` : 'No attachment';
+        doc.fill(mutedText).fontSize(7).font('Helvetica')
+           .text(`• Item ${i+1}: ${itemDesc} [${docText}]`, 65, y, { width: doc.page.width - 130 });
+        y += doc.heightOfString(`• Item ${i+1}: ${itemDesc} [${docText}]`, { width: doc.page.width - 130 }) + 2;
+      }
+
+      // Global docs
+      const globalDocs = entry.proof_documents.filter((d: any) => d.item_index == null);
+      for (const d of globalDocs) {
+        if (y > doc.page.height - 40) { doc.addPage(); y = 50; }
+        doc.fill(mutedText).fontSize(7).font('Helvetica')
+           .text(`• Attached: ${d.file_name}`, 65, y, { width: doc.page.width - 130 });
+        y += doc.heightOfString(`• Attached: ${d.file_name}`, { width: doc.page.width - 130 }) + 2;
+      }
+      
+      y += 4;
+      doc.moveTo(50, y).lineTo(doc.page.width - 50, y).lineWidth(0.3).stroke(lineColor);
+      y += 2;
+    }
   }
 
   y += 15;
 
   // ── Review History ──
-  if (app.reviews.length > 0) {
+  if (app.reviews.length > 0 && userRole !== 'FACULTY') {
     if (y > doc.page.height - 120) {
       doc.addPage();
       y = 50;
@@ -215,6 +270,65 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
       }
       y += 8;
     }
+
+    y += 20;
+
+    // ── Digital Signatures ──
+    if (y > doc.page.height - 150) {
+      doc.addPage();
+      y = 50;
+    }
+
+    doc.fill(primaryColor).fontSize(11).font('Helvetica-Bold').text('DIGITAL SIGNATURES', 50, y);
+    y += 20;
+
+    // We will draw the signatures side-by-side or stacked. Let's stack them neatly in boxes.
+    for (const review of app.reviews) {
+      if (y > doc.page.height - 80) {
+        doc.addPage();
+        y = 50;
+      }
+
+      // Draw a signature box
+      doc.rect(50, y, doc.page.width - 100, 60).lineWidth(0.5).stroke('#cbd5e1');
+      
+      const sigHash = `VERIFIED-${review.id.split('-')[0].toUpperCase()}-${new Date(review.reviewed_at).getTime().toString(16).toUpperCase()}`;
+      
+      if (review.signature_path && fsSync.existsSync(review.signature_path)) {
+        // Draw the image instead of checkmark
+        try {
+          doc.image(review.signature_path, 65, y + 5, { fit: [100, 30], align: 'center', valign: 'center' });
+        } catch (e) {
+          doc.fill('#10b981').fontSize(12).font('Helvetica-Bold')
+             .text('✓ Image Error', 65, y + 15);
+        }
+      } else {
+        const isPositive = ['RECOMMENDED', 'APPROVED'].includes(review.decision);
+        const icon = isPositive ? '✓ Digitally Signed' : '✕ Digitally Signed';
+        const color = isPositive ? '#10b981' : '#ef4444';
+
+        doc.fill(color).fontSize(12).font('Helvetica-Bold')
+          .text(icon, 65, y + 15);
+      }
+      
+      doc.fill(darkText).fontSize(9).font('Helvetica-Bold')
+        .text(`${review.reviewer.name}`, 65, y + 30);
+      
+      doc.fill(mutedText).fontSize(8).font('Helvetica')
+        .text(`${review.reviewer.role.replace(/_/g, ' ')}`, 65, y + 42);
+
+      // Right side of the box
+      doc.fill(darkText).fontSize(8).font('Helvetica-Bold')
+        .text(`Decision: ${review.decision.replace(/_/g, ' ')}`, 300, y + 15);
+      
+      doc.fill(mutedText).fontSize(8).font('Helvetica')
+        .text(`Date: ${new Date(review.reviewed_at).toLocaleString('en-IN')}`, 300, y + 27);
+      
+      doc.fill('#94a3b8').fontSize(7).font('Courier')
+        .text(`ID: ${sigHash}`, 300, y + 39);
+
+      y += 70;
+    }
   }
 
   // ── Footer ──
@@ -231,7 +345,29 @@ export async function generateAppraisalPDF(applicationId: string): Promise<PassT
   }
 
   doc.end();
-  return stream;
+  const basePdfBuffer = await pdfBufferPromise;
+
+  const mergedPdf = await PDFLibDoc.load(basePdfBuffer);
+
+  // Merge any uploaded PDF proofs
+  for (const entry of app.category_entries) {
+    for (const docInfo of entry.proof_documents) {
+      if (docInfo.file_path && docInfo.file_name.toLowerCase().endsWith('.pdf')) {
+        try {
+          const docPath = path.join(process.cwd(), docInfo.file_path);
+          const attachedPdfBytes = await fs.readFile(docPath);
+          const attachedPdf = await PDFLibDoc.load(attachedPdfBytes);
+          const copiedPages = await mergedPdf.copyPages(attachedPdf, attachedPdf.getPageIndices());
+          copiedPages.forEach(page => mergedPdf.addPage(page));
+        } catch (e) {
+          console.error(`Failed to merge attached document ${docInfo.file_name}`, e);
+        }
+      }
+    }
+  }
+
+  const mergedPdfBytes = await mergedPdf.save();
+  return Buffer.from(mergedPdfBytes);
 }
 
 // ─── Consolidated Report PDF ───────────────────────────────────────────────────
@@ -262,17 +398,24 @@ export async function generateConsolidatedPDF(
   const stream = new PassThrough();
   doc.pipe(stream);
 
-  const primaryColor = '#4f46e5';
-  const darkText = '#1e293b';
-  const mutedText = '#64748b';
-  const lineColor = '#e2e8f0';
+  const primaryColor = '#000000';
+  const darkText = '#000000';
+  const mutedText = '#333333';
+  const lineColor = '#cccccc';
 
   // ── Title ──
-  doc.rect(0, 0, doc.page.width, 80).fill(primaryColor);
-  doc.fill('#ffffff').fontSize(20).font('Helvetica-Bold')
+  doc.rect(0, 0, doc.page.width, 80).fill('#ffffff');
+  doc.fill('#000000').fontSize(20).font('Helvetica-Bold')
     .text('CONSOLIDATED FACULTY APPRAISAL REPORT', 40, 20, { align: 'center' });
   doc.fontSize(10).font('Helvetica')
     .text(`Generated: ${new Date().toLocaleDateString('en-IN')} | ${applications.length} Applications`, 40, 48, { align: 'center' });
+
+  try {
+    const logoPath = path.join(__dirname, 'logo.png');
+    doc.image(logoPath, doc.page.width - 120, 10, { width: 60 });
+  } catch (err) {
+    console.error('Logo not found', err);
+  }
 
   let y = 100;
 

@@ -4,6 +4,7 @@ import { ApplicationStatus, AuditAction, Role } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js';
+import { sendEmail } from '../lib/email.js';
 
 const router = Router();
 router.use(authenticate);
@@ -52,6 +53,14 @@ router.post('/assign-reviewer', async (req: Request, res: Response, next: NextFu
         details: { reviewer_id, reviewer_name: reviewer.name },
       },
     });
+
+    const subject = `New Application Assigned for Review`;
+    const body = `Dear ${reviewer.name},<br><br>
+An application has been assigned to you by the Admin for the academic year ${application.academic_year}.<br>
+You have this application to be reviewed in your dashboard.`;
+    
+    // Fire and forget email to avoid slowing down API response
+    sendEmail(reviewer.email, subject, body).catch(e => console.error("Failed to send reviewer email", e));
 
     res.json({
       success: true,
@@ -227,6 +236,96 @@ router.get('/stats', async (_req: Request, res: Response, next: NextFunction) =>
     };
 
     res.json({ success: true, data: { stats } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── GET /api/admin/approvals-rejections — View principal decisions ───────────
+
+router.get('/approvals-rejections', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const principalReviews = await prisma.review.findMany({
+      where: { role_at_review: Role.PRINCIPAL },
+      include: {
+        application: {
+          include: {
+            faculty: {
+              include: { department: true }
+            }
+          }
+        }
+      },
+      orderBy: { reviewed_at: 'desc' }
+    });
+
+    const applications = principalReviews.map(r => ({
+      id: r.application.id,
+      faculty: {
+        name: r.application.faculty.name,
+        email: r.application.faculty.email,
+        department: { code: r.application.faculty.department.code }
+      },
+      academic_year: r.application.academic_year,
+      final_score: r.application.final_score,
+      decision: r.decision,
+      comments: r.comments,
+      reviewed_at: r.reviewed_at
+    }));
+
+    res.json({ success: true, data: { applications } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── POST /api/admin/override-application/:facultyId — Force open app ──────
+
+router.post('/override-application/:facultyId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const faculty_id = req.params.facultyId as string;
+    const academic_year = req.body.academic_year || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+    const existing = await prisma.application.findUnique({
+      where: { faculty_id_academic_year: { faculty_id, academic_year } },
+    });
+    
+    const action = req.body.action; // 'EDIT' or 'OPEN'
+
+    if (existing) {
+      if (action === 'OPEN') {
+        return res.status(400).json({ success: false, error: 'Application for this year is already open or exists.' });
+      }
+      if (existing.status !== 'DRAFT') {
+        // Force change to DRAFT to allow editing
+        const updated = await prisma.application.update({
+          where: { id: existing.id },
+          data: { status: 'DRAFT' }
+        });
+        return res.json({ success: true, message: 'Existing application forced to DRAFT mode.', data: { application: updated } });
+      }
+      return res.json({ success: true, message: 'Application is already open for editing.', data: { application: existing } });
+    }
+
+    if (action === 'EDIT') {
+      return res.status(404).json({ success: false, error: 'No application exists for this year to edit.' });
+    }
+
+    const application = await prisma.application.create({
+      data: { faculty_id, academic_year, status: 'DRAFT' },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        user_id: req.user!.id,
+        action: AuditAction.APPLICATION_CREATED,
+        entity_type: 'Application',
+        entity_id: application.id,
+        details: { action: 'admin_override', academic_year },
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'New application forcefully opened.', data: { application } });
   } catch (error) {
     next(error);
   }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { applicationsApi } from '../lib/api';
+import { applicationsApi, reportsApi } from '../lib/api';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 
@@ -8,6 +8,7 @@ interface Application {
   academic_year: string;
   status: string;
   total_score: number | null;
+  reviewer_score?: number | null;
   faculty: {
     id: string;
     name: string;
@@ -85,6 +86,23 @@ export default function PrincipalDashboardPage() {
     }
   };
 
+  const handleDownloadPDF = async (appId: string, year: string) => {
+    try {
+      showToast('success', 'Generating PDF...');
+      const res = await reportsApi.downloadAppraisalPDF(appId);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `appraisal_${year}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (e) {
+      console.error('PDF download failed', e);
+      showToast('error', 'Failed to download PDF report');
+    }
+  };
+
   const filtered = filterStatus === 'ALL' ? applications : applications.filter(a => a.status === filterStatus);
 
   // Stats
@@ -122,11 +140,20 @@ export default function PrincipalDashboardPage() {
     {
       key: 'actions',
       header: '',
-      width: '120px',
+      width: '180px',
       render: (row: Application) => (
-        <button className="btn-small btn-accent" onClick={() => viewDetail(row)}>
-          🔍 Review
-        </button>
+        <div className="cell-actions" style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="btn-download-pdf"
+            onClick={() => handleDownloadPDF(row.id, row.academic_year)}
+            title="Download Full Report PDF"
+          >
+            <span className="download-icon">📥</span> PDF
+          </button>
+          <button className="btn-small btn-accent" onClick={() => viewDetail(row)}>
+            🔍 Review
+          </button>
+        </div>
       ),
     },
   ];
@@ -187,12 +214,12 @@ export default function PrincipalDashboardPage() {
       {/* Detail Modal */}
       {selectedApp && (
         <div className="modal-overlay" onClick={() => setSelectedApp(null)}>
-          <div className="modal-content" style={{ maxWidth: '640px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: '640px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Review: {selectedApp.faculty.name}</h3>
               <button className="modal-close" onClick={() => setSelectedApp(null)}>✕</button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: 'auto' }}>
               {detailLoading ? (
                 <div className="page-loader-inline"><div className="loader-spinner" /><p>Loading details...</p></div>
               ) : (
@@ -211,8 +238,12 @@ export default function PrincipalDashboardPage() {
                       <span className="detail-value">{selectedApp.academic_year}</span>
                     </div>
                     <div className="detail-item">
-                      <span className="detail-label">Total Score</span>
+                      <span className="detail-label">System Score</span>
                       <span className="detail-value score">{selectedApp.total_score != null ? Number(selectedApp.total_score).toFixed(1) : '—'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Reviewer Score</span>
+                      <span className="detail-value score">{selectedApp.reviewer_score != null ? Number(selectedApp.reviewer_score).toFixed(1) : '—'}</span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Status</span>
@@ -228,11 +259,11 @@ export default function PrincipalDashboardPage() {
                         {selectedApp.reviews.map((r: any, i: number) => (
                           <div key={i} className="review-entry">
                             <div className="review-entry-header">
-                              <span className="review-entry-role">{r.reviewer_role}</span>
-                              <StatusBadge status={r.recommendation} size="sm" />
+                              <span className="review-entry-role">{(r.role_at_review || r.reviewer?.role || 'Reviewer').replace('_', ' ')}</span>
+                              <StatusBadge status={r.decision} size="sm" />
                             </div>
                             {r.comments && <p className="review-entry-comment">"{r.comments}"</p>}
-                            <span className="review-entry-date">{new Date(r.created_at).toLocaleDateString()}</span>
+                            <span className="review-entry-date">{new Date(r.reviewed_at).toLocaleDateString()}</span>
                           </div>
                         ))}
                       </div>

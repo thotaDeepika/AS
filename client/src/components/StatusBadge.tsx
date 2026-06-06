@@ -1,5 +1,6 @@
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT:              { label: 'Draft',             color: '#94a3b8', bg: '#94a3b815' },
+  REVERTED:           { label: 'Reverted',          color: '#eab308', bg: '#eab30815' },
   SUBMITTED:          { label: 'Submitted',         color: '#3b82f6', bg: '#3b82f615' },
   HOD_REVIEWED:       { label: 'HOD Reviewed',      color: '#8b5cf6', bg: '#8b5cf615' },
   REVIEWER_ASSIGNED:  { label: 'Reviewer Assigned', color: '#f59e0b', bg: '#f59e0b15' },

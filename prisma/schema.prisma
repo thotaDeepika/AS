@@ -28,6 +28,7 @@ model User {
   designation      Designation?
   department_id    String
   is_active        Boolean       @default(true)
+  joining_date     DateTime?
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
   applications     Application[] @relation("FacultyApplications")
@@ -46,6 +47,7 @@ model Application {
   status           ApplicationStatus @default(DRAFT)
   total_score      Decimal           @default(0) @db.Decimal(6, 2)
   bonus_score      Decimal?          @db.Decimal(6, 2)
+  reviewer_score   Decimal?          @db.Decimal(6, 2)
   final_score      Decimal           @default(0) @db.Decimal(6, 2)
   submitted_at     DateTime?
   frozen_at        DateTime?
@@ -98,6 +100,7 @@ model CategoryEntry {
   category_id      String
   raw_value        Json
   calculated_score Decimal         @default(0) @db.Decimal(6, 2)
+  reviewer_score   Decimal?        @db.Decimal(6, 2)
   created_at       DateTime        @default(now())
   updated_at       DateTime        @updatedAt
   application      Application     @relation(fields: [application_id], references: [id], onDelete: Cascade)
@@ -115,6 +118,7 @@ model ProofDocument {
   file_path         String
   file_size         Int
   mime_type         String        @default("application/pdf")
+  item_index        Int?
   uploaded_at       DateTime      @default(now())
   category_entry    CategoryEntry @relation(fields: [category_entry_id], references: [id], onDelete: Cascade)
 
@@ -128,6 +132,7 @@ model Review {
   role_at_review   Role
   decision         ReviewDecision
   comments         String?
+  signature_path   String?
   reviewed_at      DateTime       @default(now())
   application      Application    @relation(fields: [application_id], references: [id], onDelete: Cascade)
   reviewer         User           @relation(fields: [reviewer_user_id], references: [id])
@@ -166,6 +171,7 @@ enum Designation {
 
 enum ApplicationStatus {
   DRAFT
+  REVERTED
   SUBMITTED
   HOD_REVIEWED
   REVIEWER_ASSIGNED
@@ -180,6 +186,7 @@ enum ReviewDecision {
   NOT_RECOMMENDED
   APPROVED
   REJECTED
+  REVERTED
 }
 
 enum AuditAction {

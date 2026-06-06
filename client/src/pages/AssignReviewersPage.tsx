@@ -35,6 +35,10 @@ export default function AssignReviewersPage() {
   const [assigning, setAssigning] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
+  // Tab switching state
+  const [activeTab, setActiveTab] = useState<'workflow' | 'decisions'>('workflow');
+  const [decisionApps, setDecisionApps] = useState<any[]>([]);
+
   // Workflow actions
   const [forwarding, setForwarding] = useState(false);
   const [freezing, setFreezing] = useState(false);
@@ -48,12 +52,14 @@ export default function AssignReviewersPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [appsRes, usersRes] = await Promise.all([
+      const [appsRes, usersRes, decisionsRes] = await Promise.all([
         applicationsApi.list(),
         usersApi.list({ role: 'REVIEWER' }),
+        adminApi.approvalsRejections(),
       ]);
       setApplications(appsRes.data.data.applications || []);
       setReviewers(usersRes.data.data.users || []);
+      setDecisionApps(decisionsRes.data.data.applications || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -188,64 +194,162 @@ export default function AssignReviewersPage() {
     },
   ];
 
+  const decisionColumns = [
+    {
+      key: 'faculty',
+      header: 'Faculty',
+      render: (row: any) => (
+        <div className="cell-faculty">
+          <span className="cell-name">{row.faculty.name}</span>
+          <span className="cell-sub">{row.faculty.email}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'department',
+      header: 'Department',
+      render: (row: any) => row.faculty.department.code,
+    },
+    {
+      key: 'academic_year',
+      header: 'Year',
+      sortable: true,
+    },
+    {
+      key: 'final_score',
+      header: 'Final Score',
+      sortable: true,
+      render: (row: any) => (
+        <span className="cell-score">{row.final_score != null ? Number(row.final_score).toFixed(1) : '—'}</span>
+      ),
+    },
+    {
+      key: 'decision',
+      header: 'Decision',
+      render: (row: any) => <StatusBadge status={row.decision} size="sm" />,
+    },
+    {
+      key: 'comments',
+      header: 'Principal Comments',
+      render: (row: any) => (
+        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+          {row.comments || 'No comments'}
+        </span>
+      ),
+    },
+    {
+      key: 'reviewed_at',
+      header: 'Reviewed Date',
+      render: (row: any) => new Date(row.reviewed_at).toLocaleDateString(),
+    },
+  ];
+
   return (
     <div className="assign-page">
       {toast && <div className={`toast toast-${toast.type}`}>{toast.type === 'success' ? '✓' : '✕'} {toast.msg}</div>}
 
       <div className="page-title">
         <div>
-          <h2>Workflow Management</h2>
-          <p>Assign reviewers and manage the application workflow pipeline</p>
+          <h2>Workflow & Decisions</h2>
+          <p>Assign reviewers and view approved or rejected faculty applications</p>
         </div>
       </div>
 
-      {/* Workflow Pipeline */}
-      <div className="workflow-pipeline">
-        {[
-          { status: 'SUBMITTED', label: 'Submitted', color: '#f59e0b' },
-          { status: 'HOD_REVIEWED', label: 'HOD Reviewed', color: '#3b82f6' },
-          { status: 'REVIEWER_ASSIGNED', label: 'Reviewer Assigned', color: '#8b5cf6' },
-          { status: 'REVIEWER_REVIEWED', label: 'Reviewer Done', color: '#6366f1' },
-          { status: 'PRINCIPAL_REVIEWED', label: 'Principal Done', color: '#10b981' },
-          { status: 'FROZEN', label: 'Frozen', color: '#06b6d4' },
-          { status: 'SENT_TO_ACCOUNTS', label: 'Accounts', color: '#14b8a6' },
-        ].map((step, i) => (
-          <div key={step.status} className="pipeline-step">
-            <div className="pipeline-dot" style={{ background: step.color }}>
-              {statusCounts[step.status] || 0}
-            </div>
-            <span className="pipeline-label">{step.label}</span>
-            {i < 6 && <span className="pipeline-arrow">→</span>}
+      {/* Tabs */}
+      <div className="tabs-container" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+        <button
+          className={`tab-btn ${activeTab === 'workflow' ? 'active' : ''}`}
+          onClick={() => setActiveTab('workflow')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'workflow' ? 'var(--primary-color)' : 'var(--text-muted)',
+            fontWeight: activeTab === 'workflow' ? 'bold' : 'normal',
+            borderBottom: activeTab === 'workflow' ? '2px solid var(--primary-color)' : 'none',
+            padding: '0.5rem 1rem',
+            cursor: 'pointer'
+          }}
+        >
+          🔀 Active Workflow
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'decisions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('decisions')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'decisions' ? 'var(--primary-color)' : 'var(--text-muted)',
+            fontWeight: activeTab === 'decisions' ? 'bold' : 'normal',
+            borderBottom: activeTab === 'decisions' ? '2px solid var(--primary-color)' : 'none',
+            padding: '0.5rem 1rem',
+            cursor: 'pointer'
+          }}
+        >
+          📋 Approved & Rejected Faculty
+        </button>
+      </div>
+
+      {activeTab === 'workflow' ? (
+        <>
+          {/* Workflow Pipeline */}
+          <div className="workflow-pipeline">
+            {[
+              { status: 'SUBMITTED', label: 'Submitted', color: '#f59e0b' },
+              { status: 'HOD_REVIEWED', label: 'HOD Reviewed', color: '#3b82f6' },
+              { status: 'REVIEWER_ASSIGNED', label: 'Reviewer Assigned', color: '#8b5cf6' },
+              { status: 'REVIEWER_REVIEWED', label: 'Reviewer Done', color: '#6366f1' },
+              { status: 'PRINCIPAL_REVIEWED', label: 'Principal Done', color: '#10b981' },
+              { status: 'FROZEN', label: 'Frozen', color: '#06b6d4' },
+              { status: 'SENT_TO_ACCOUNTS', label: 'Accounts', color: '#14b8a6' },
+            ].map((step, i) => (
+              <div key={step.status} className="pipeline-step">
+                <div className="pipeline-dot" style={{ background: step.color }}>
+                  {statusCounts[step.status] || 0}
+                </div>
+                <span className="pipeline-label">{step.label}</span>
+                {i < 6 && <span className="pipeline-arrow">→</span>}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Bulk Actions */}
-      {selectedIds.size > 0 && (
-        <div className="bulk-actions-bar">
-          <span>{selectedIds.size} selected</span>
-          <button className="btn-small btn-accent" onClick={() => handleBulkAction('forward')} disabled={forwarding}>
-            {forwarding ? '...' : '📤 Forward to Principal'}
-          </button>
-          <button className="btn-small btn-success" onClick={() => handleBulkAction('freeze')} disabled={freezing}>
-            {freezing ? '...' : '❄️ Freeze'}
-          </button>
-          <button className="btn-small" onClick={() => handleBulkAction('accounts')} disabled={sendingAccounts}>
-            {sendingAccounts ? '...' : '💰 Send to Accounts'}
-          </button>
-          <button className="btn-small btn-danger" onClick={() => setSelectedIds(new Set())}>Clear</button>
-        </div>
+          {/* Bulk Actions */}
+          {selectedIds.size > 0 && (
+            <div className="bulk-actions-bar">
+              <span>{selectedIds.size} selected</span>
+              <button className="btn-small btn-accent" onClick={() => handleBulkAction('forward')} disabled={forwarding}>
+                {forwarding ? '...' : '📤 Forward to Principal'}
+              </button>
+              <button className="btn-small btn-success" onClick={() => handleBulkAction('freeze')} disabled={freezing}>
+                {freezing ? '...' : '❄️ Freeze'}
+              </button>
+              <button className="btn-small" onClick={() => handleBulkAction('accounts')} disabled={sendingAccounts}>
+                {sendingAccounts ? '...' : '💰 Send to Accounts'}
+              </button>
+              <button className="btn-small btn-danger" onClick={() => setSelectedIds(new Set())}>Clear</button>
+            </div>
+          )}
+
+          <DataTable
+            columns={columns}
+            data={applications}
+            searchable
+            searchPlaceholder="Search by faculty name..."
+            loading={loading}
+            emptyMessage="No applications found"
+            pagination={{ page: 1, pages: 1, total: applications.length, onPageChange: () => {} }}
+          />
+        </>
+      ) : (
+        <DataTable
+          columns={decisionColumns}
+          data={decisionApps}
+          searchable
+          searchPlaceholder="Search by faculty name..."
+          loading={loading}
+          emptyMessage="No approved or rejected applications found"
+          pagination={{ page: 1, pages: 1, total: decisionApps.length, onPageChange: () => {} }}
+        />
       )}
-
-      <DataTable
-        columns={columns}
-        data={applications}
-        searchable
-        searchPlaceholder="Search by faculty name..."
-        loading={loading}
-        emptyMessage="No applications found"
-        pagination={{ page: 1, pages: 1, total: applications.length, onPageChange: () => {} }}
-      />
 
       {/* Assign Reviewer Modal */}
       {selectedAppId && (

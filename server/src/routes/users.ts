@@ -19,6 +19,7 @@ const createUserSchema = z.object({
   role: z.nativeEnum(Role),
   designation: z.nativeEnum(Designation).optional().nullable(),
   department_id: z.string().uuid(),
+  joining_date: z.string().optional().nullable(),
   password: z.string().min(8).optional(), // defaults to Admin@123
 });
 
@@ -28,21 +29,26 @@ const updateUserSchema = z.object({
   designation: z.nativeEnum(Designation).optional().nullable(),
   department_id: z.string().uuid().optional(),
   is_active: z.boolean().optional(),
+  joining_date: z.string().optional().nullable(),
 });
 
 // ─── GET /api/users ───────────────────────────────────────────────────────────
 
 router.get('/', authorize(Role.ADMIN, Role.PRINCIPAL), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { role, department_id, search, page = '1', limit = '20' } = req.query;
+    const role = req.query.role as string | undefined;
+    const department_id = req.query.department_id as string | undefined;
+    const search = req.query.search as string | undefined;
+    const page = req.query.page as string | undefined || '1';
+    const limit = req.query.limit as string | undefined || '20';
 
     const where: any = {};
     if (role) where.role = role;
     if (department_id) where.department_id = department_id;
     if (search) {
       where.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -62,6 +68,7 @@ router.get('/', authorize(Role.ADMIN, Role.PRINCIPAL), async (req: Request, res:
           role: true,
           designation: true,
           is_active: true,
+          joining_date: true,
           created_at: true,
           department: { select: { id: true, name: true, code: true } },
         },
@@ -83,7 +90,7 @@ router.get('/', authorize(Role.ADMIN, Role.PRINCIPAL), async (req: Request, res:
 router.get('/:id', authorize(Role.ADMIN, Role.PRINCIPAL, Role.HOD), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       select: {
         id: true,
         email: true,
@@ -91,6 +98,7 @@ router.get('/:id', authorize(Role.ADMIN, Role.PRINCIPAL, Role.HOD), async (req: 
         role: true,
         designation: true,
         is_active: true,
+        joining_date: true,
         created_at: true,
         updated_at: true,
         department: { select: { id: true, name: true, code: true } },
@@ -123,6 +131,7 @@ router.post('/', authorize(Role.ADMIN), async (req: Request, res: Response, next
         role: data.role,
         designation: data.designation,
         department_id: data.department_id,
+        joining_date: data.joining_date ? new Date(data.joining_date) : null,
         password_hash,
       },
       select: {
@@ -132,6 +141,7 @@ router.post('/', authorize(Role.ADMIN), async (req: Request, res: Response, next
         role: true,
         designation: true,
         is_active: true,
+        joining_date: true,
         department: { select: { id: true, name: true, code: true } },
       },
     });
@@ -157,10 +167,14 @@ router.post('/', authorize(Role.ADMIN), async (req: Request, res: Response, next
 
 router.put('/:id', authorize(Role.ADMIN), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = updateUserSchema.parse(req.body);
+    const parsed = updateUserSchema.parse(req.body);
+    const data: any = { ...parsed };
+    if (parsed.joining_date !== undefined) {
+      data.joining_date = parsed.joining_date ? new Date(parsed.joining_date) : null;
+    }
 
     const user = await prisma.user.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data,
       select: {
         id: true,
@@ -169,6 +183,7 @@ router.put('/:id', authorize(Role.ADMIN), async (req: Request, res: Response, ne
         role: true,
         designation: true,
         is_active: true,
+        joining_date: true,
         department: { select: { id: true, name: true, code: true } },
       },
     });
@@ -194,7 +209,7 @@ router.put('/:id', authorize(Role.ADMIN), async (req: Request, res: Response, ne
 router.get('/department/:departmentId', authorize(Role.ADMIN, Role.PRINCIPAL, Role.HOD), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
-      where: { department_id: req.params.departmentId, is_active: true },
+      where: { department_id: req.params.departmentId as string, is_active: true },
       orderBy: { name: 'asc' },
       select: {
         id: true,

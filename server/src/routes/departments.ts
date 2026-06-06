@@ -24,7 +24,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const department = await prisma.department.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         users: {
           where: { is_active: true },

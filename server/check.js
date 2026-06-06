@@ -1,0 +1,1 @@
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); prisma.department.findUnique({where:{code:'BT'}}).then(dept => prisma.user.findMany({where:{department_id:dept.id}}).then(console.log).finally(()=>prisma.$disconnect()));

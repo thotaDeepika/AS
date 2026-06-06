@@ -63,7 +63,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
       role: user.role,
     };
 
-    const token = jwt.sign(payload, secret, { expiresIn });
+    const token = jwt.sign(payload, secret, { expiresIn: expiresIn as any });
 
     // Audit log
     await prisma.auditLog.create({

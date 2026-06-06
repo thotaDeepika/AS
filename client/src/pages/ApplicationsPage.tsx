@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { applicationsApi } from '../lib/api';
+import api, { applicationsApi, getFileUrl } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import ScoreCard from '../components/ScoreCard';
 import FileUpload from '../components/FileUpload';
@@ -48,6 +49,7 @@ const SECTION_MAXES: Record<string, Record<string, number>> = {
 
 export default function ApplicationsPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [application, setApplication] = useState<Application | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +58,7 @@ export default function ApplicationsPage() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [scoreTotals, setScoreTotals] = useState<any>(null);
+  const [historyApps, setHistoryApps] = useState<any[]>([]);
   const [expandedSection, setExpandedSection] = useState<string | null>('TEACHING');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -93,7 +96,13 @@ export default function ApplicationsPage() {
         setCategories(cats);
 
         if (apps.length > 0) {
-          const detail = await applicationsApi.getById(apps[0].id);
+          setHistoryApps(apps);
+          const urlId = searchParams.get('id');
+          // Default to the requested ID, or current academic year's app if it exists, else the latest
+          const targetApp = (urlId ? apps.find((a: any) => a.id === urlId) : null)
+                         || apps.find((a: any) => a.academic_year === academicYear) 
+                         || apps[0];
+          const detail = await applicationsApi.getById(targetApp.id);
           const app = detail.data.data.application;
           // Convert Prisma Decimal fields to numbers
           if (app.total_score !== null) app.total_score = Number(app.total_score);
@@ -126,7 +135,7 @@ export default function ApplicationsPage() {
 
   // Save a category entry
   const handleSaveEntry = async (categoryId: string, rawValue: Record<string, any>) => {
-    if (!application || application.status !== 'DRAFT') return;
+    if (!application || !['DRAFT', 'REVERTED'].includes(application.status)) return;
     setSaving(prev => ({ ...prev, [categoryId]: true }));
     try {
       await applicationsApi.saveEntry(application.id, categoryId, rawValue);
@@ -142,16 +151,33 @@ export default function ApplicationsPage() {
   };
 
   // Upload proof
-  const handleUpload = async (categoryId: string, file: File) => {
+  const handleUpload = async (categoryId: string, file: File, itemIndex?: number) => {
     if (!application) return;
     setUploading(prev => ({ ...prev, [categoryId]: true }));
     try {
-      await applicationsApi.uploadProof(application.id, categoryId, file);
+      await applicationsApi.uploadProof(application.id, categoryId, file, itemIndex);
       const detail = await applicationsApi.getById(application.id);
       setApplication(detail.data.data.application);
       showToast('success', 'Document uploaded');
     } catch (err: any) {
       showToast('error', err.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploading(prev => ({ ...prev, [categoryId]: false }));
+    }
+  };
+
+  // Remove proof document
+  const handleRemoveProof = async (categoryId: string, docId: string) => {
+    if (!application || !['DRAFT', 'REVERTED'].includes(application.status)) return;
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    setUploading(prev => ({ ...prev, [categoryId]: true }));
+    try {
+      await applicationsApi.deleteProof(application.id, docId);
+      const detail = await applicationsApi.getById(application.id);
+      setApplication(detail.data.data.application);
+      showToast('success', 'Document deleted');
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || 'Delete failed');
     } finally {
       setUploading(prev => ({ ...prev, [categoryId]: false }));
     }
@@ -170,7 +196,7 @@ export default function ApplicationsPage() {
 
   // Submit application
   const handleSubmit = async () => {
-    if (!application || application.status !== 'DRAFT') return;
+    if (!application || !['DRAFT', 'REVERTED'].includes(application.status)) return;
     if (!confirm('Submit your application? You will not be able to edit it after submission.')) return;
     setSubmitting(true);
     try {
@@ -188,6 +214,20 @@ export default function ApplicationsPage() {
     }
   };
 
+  const handlePreviewPDF = async () => {
+    if (!application) return;
+    try {
+      showToast('success', 'Generating PDF...');
+      const response = await api.get(`/reports/appraisal/${application.id}/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch (e) {
+      showToast('error', 'Failed to generate PDF');
+    }
+  };
+
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4000);
@@ -196,22 +236,20 @@ export default function ApplicationsPage() {
   if (loading) return <div className="page-loader"><div className="loader-spinner" /><p>Loading...</p></div>;
 
   // Faculty role: if no application, show create card
-  if (user?.role === 'FACULTY' && !application) {
-    return (
-      <div className="app-empty-state">
-        <div className="empty-icon">📝</div>
-        <h2>No Application Found</h2>
-        <p>Start your appraisal by creating a new application for the current academic year.</p>
-        <button className="btn-primary" onClick={handleCreate} disabled={creating}>
-          {creating ? 'Creating...' : `Create Application (${academicYear})`}
-        </button>
-      </div>
-    );
+  const hasCurrentYear = historyApps.some(a => a.academic_year === academicYear);
+  const showCreatePrompt = user?.role === 'FACULTY' && !hasCurrentYear;
+
+  if (user?.role === 'FACULTY' && !application && !showCreatePrompt) {
+    return <div className="page-loader"><p>No applications found.</p></div>;
   }
 
-  if (!application) return null;
-
-  const isDraft = application.status === 'DRAFT';
+  const principalReview = application?.reviews?.find((r: any) => r.role_at_review === 'PRINCIPAL');
+  const isRejected = principalReview?.decision === 'REJECTED';
+  const lastReview = application?.reviews && application.reviews.length > 0
+    ? application.reviews[application.reviews.length - 1]
+    : null;
+  const isReverted = application?.status === 'REVERTED';
+  const isDraft = application?.status === 'DRAFT' || application?.status === 'REVERTED';
   const sections = [
     { key: 'TEACHING', label: 'Teaching' },
     { key: 'RESEARCH', label: 'Research' },
@@ -228,6 +266,34 @@ export default function ApplicationsPage() {
       {toast && (
         <div className={`toast toast-${toast.type}`}>
           {toast.type === 'success' ? '✓' : '✕'} {toast.msg}
+        </div>
+      )}
+
+      {showCreatePrompt && (
+        <div className="app-empty-state" style={{ marginBottom: '2rem' }}>
+          <div className="empty-icon">📝</div>
+          <h2>Current Year Application Missing</h2>
+          <p>Start your appraisal by creating a new application for the current academic year ({academicYear}).</p>
+          <button className="btn-primary" onClick={handleCreate} disabled={creating}>
+            {creating ? 'Creating...' : `Create Application (${academicYear})`}
+          </button>
+        </div>
+      )}
+
+      {application && (
+        <>
+          {/* Reverted and Rejected Alert Banners */}
+      {isRejected && (
+        <div className="alert alert-danger" style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: '#ef444415', border: '1px solid #ef444440', color: '#ef4444' }}>
+          <strong>⚠️ Application Rejected:</strong> Your appraisal application has been rejected by the Principal. No further modifications are allowed.
+          {principalReview.comments && <p style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>Comments: "{principalReview.comments}"</p>}
+        </div>
+      )}
+
+      {isReverted && (
+        <div className="alert alert-warning" style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: '#eab30815', border: '1px solid #eab30840', color: '#ca8a04' }}>
+          <strong>↩️ Changes Requested:</strong> The HOD has reverted your application for changes. Please update the requested fields and re-submit.
+          {lastReview.comments && <p style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>Feedback: "{lastReview.comments}"</p>}
         </div>
       )}
 
@@ -248,6 +314,9 @@ export default function ApplicationsPage() {
             <>
               <button className="btn-secondary" onClick={handlePreviewScores}>
                 📊 Preview Score
+              </button>
+              <button className="btn-secondary" onClick={handlePreviewPDF} style={{ marginLeft: '8px', marginRight: '8px' }}>
+                📄 Preview PDF
               </button>
               <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
                 {submitting ? 'Submitting...' : '🚀 Submit Application'}
@@ -292,7 +361,8 @@ export default function ApplicationsPage() {
                   saving={saving[cat.id] || false}
                   uploading={uploading[cat.id] || false}
                   onSave={(val) => handleSaveEntry(cat.id, val)}
-                  onUpload={(file) => handleUpload(cat.id, file)}
+                  onUpload={(file, index) => handleUpload(cat.id, file, index)}
+                  onRemoveProof={(docId) => handleRemoveProof(cat.id, docId)}
                   getEntryValue={(field) => getEntryValue(cat.id, field)}
                 />
               ))}
@@ -302,7 +372,7 @@ export default function ApplicationsPage() {
       ))}
 
       {/* Review History */}
-      {application.reviews.length > 0 && (
+      {application.reviews.length > 0 && user?.role !== 'FACULTY' && (
         <div className="reviews-section">
           <h3>Review History</h3>
           {application.reviews.map((review: any) => (
@@ -318,6 +388,8 @@ export default function ApplicationsPage() {
           ))}
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -331,29 +403,33 @@ interface CategoryFormItemProps {
   saving: boolean;
   uploading: boolean;
   onSave: (val: Record<string, any>) => void;
-  onUpload: (file: File) => void;
+  onUpload: (file: File, itemIndex?: number) => void;
+  onRemoveProof: (docId: string) => void;
   getEntryValue: (field: string) => any;
 }
 
-function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave, onUpload }: CategoryFormItemProps) {
+function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave, onUpload, onRemoveProof }: CategoryFormItemProps) {
   const [localValues, setLocalValues] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
 
-  // Initialize from entry
+  // Initialize from entry only if user hasn't made unsaved changes
   useEffect(() => {
-    if (entry?.raw_value) {
+    if (entry?.raw_value && !dirtyRef.current) {
       setLocalValues(entry.raw_value);
     }
-  }, [entry]);
+  }, [entry?.raw_value]);
 
   const updateField = (field: string, value: any) => {
     setLocalValues(prev => ({ ...prev, [field]: value }));
     setDirty(true);
+    dirtyRef.current = true;
   };
 
   const handleSave = () => {
     onSave(localValues);
     setDirty(false);
+    dirtyRef.current = false;
   };
 
   // Determine max attachments from category config
@@ -374,7 +450,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
             type="number"
             min="0" max="100" step="0.1"
             value={localValues.fci_percentage ?? ''}
-            onChange={e => updateField('fci_percentage', parseFloat(e.target.value) || 0)}
+            onChange={e => updateField('fci_percentage', e.target.value === '' ? '' : parseFloat(e.target.value))}
             disabled={!isDraft}
             placeholder="e.g. 82.5"
           />
@@ -392,7 +468,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           <input
             type="number" min="0"
             value={localValues.count ?? ''}
-            onChange={e => updateField('count', parseInt(e.target.value) || 0)}
+            onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
             disabled={!isDraft}
             placeholder="e.g. 2"
           />
@@ -409,7 +485,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
             <input
               type="number" min="0"
               value={localValues.books ?? ''}
-              onChange={e => updateField('books', parseInt(e.target.value) || 0)}
+              onChange={e => updateField('books', e.target.value === '' ? '' : parseInt(e.target.value))}
               disabled={!isDraft} placeholder="0"
             />
           </div>
@@ -418,7 +494,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
             <input
               type="number" min="0"
               value={localValues.chapters ?? ''}
-              onChange={e => updateField('chapters', parseInt(e.target.value) || 0)}
+              onChange={e => updateField('chapters', e.target.value === '' ? '' : parseInt(e.target.value))}
               disabled={!isDraft} placeholder="0"
             />
           </div>
@@ -434,7 +510,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           <input
             type="number" min="0"
             value={localValues.count ?? ''}
-            onChange={e => updateField('count', parseInt(e.target.value) || 0)}
+            onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
             disabled={!isDraft} placeholder="0"
           />
         </div>
@@ -449,7 +525,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           <input
             type="number" min="0"
             value={localValues.count ?? ''}
-            onChange={e => updateField('count', parseInt(e.target.value) || 0)}
+            onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
             disabled={!isDraft} placeholder="0"
           />
         </div>
@@ -464,7 +540,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           <input
             type="number" min="0" step="0.01"
             value={localValues.amount_lakhs ?? ''}
-            onChange={e => updateField('amount_lakhs', parseFloat(e.target.value) || 0)}
+            onChange={e => updateField('amount_lakhs', e.target.value === '' ? '' : parseFloat(e.target.value))}
             disabled={!isDraft} placeholder="e.g. 5.5"
           />
         </div>
@@ -481,7 +557,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           <input
             type="number" min="0"
             value={localValues.days ?? ''}
-            onChange={e => updateField('days', parseInt(e.target.value) || 0)}
+            onChange={e => updateField('days', e.target.value === '' ? '' : parseInt(e.target.value))}
             disabled={!isDraft} placeholder="e.g. 5"
           />
         </div>
@@ -531,7 +607,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
         <input
           type="number" min="0"
           value={localValues.count ?? ''}
-          onChange={e => updateField('count', parseInt(e.target.value) || 0)}
+          onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
           disabled={!isDraft} placeholder="0"
         />
       </div>
@@ -554,31 +630,103 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       <div className="category-form-body">
         {renderInput()}
 
-        {/* Proof upload — supports multi-file via maxFiles */}
-        {isDraft && (
-          <div className="category-upload">
-            <FileUpload
-              onFileSelect={(file) => onUpload(file)}
-              uploading={uploading}
-              maxFiles={maxAttachments}
-              uploadedFiles={
-                entry?.proof_documents?.map((doc: any) => ({
-                  id: doc.id,
-                  name: doc.file_name,
-                  size: doc.file_size,
-                })) || []
-              }
-            />
-          </div>
-        )}
+        {(() => {
+          const dynamicCount = 
+            (typeof localValues.count === 'number' ? localValues.count : 0) +
+            (typeof localValues.books === 'number' ? localValues.books : 0) +
+            (typeof localValues.chapters === 'number' ? localValues.chapters : 0);
 
-        {!isDraft && entry?.proof_documents && entry.proof_documents.length > 0 && (
-          <div className="category-docs">
-            {entry.proof_documents.map((doc: any) => (
-              <div key={doc.id} className="doc-chip">📄 {doc.file_name}</div>
-            ))}
-          </div>
-        )}
+          if (dynamicCount > 0) {
+            return (
+              <div className="dynamic-items-container" style={{ marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>Detailed Information & Uploads</h4>
+                {Array.from({ length: dynamicCount }).map((_, idx) => {
+                  const doc = entry?.proof_documents?.find(d => d.item_index === idx);
+                  return (
+                    <div key={idx} className="dynamic-item-card" style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
+                      <h5 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '0.9rem', color: '#64748b' }}>Item #{idx + 1}</h5>
+                      
+                      <div className="category-field">
+                        <label>Description / Details</label>
+                        <textarea 
+                          value={localValues[`item_desc_${idx}`] || ''}
+                          onChange={e => updateField(`item_desc_${idx}`, e.target.value)}
+                          disabled={!isDraft}
+                          placeholder="Enter description or details for this item..."
+                          rows={2}
+                          style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        />
+                      </div>
+                      
+                      {isDraft && !doc && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <FileUpload
+                            onFileSelect={(file) => onUpload(file, idx)}
+                            uploading={uploading}
+                            maxFiles={1}
+                            uploadedFiles={[]}
+                          />
+                        </div>
+                      )}
+
+                      {doc && (
+                        <div className="category-docs" style={{ marginTop: '0.5rem' }}>
+                          <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block' }}>
+                            📄 {doc.file_name}
+                          </a>
+                          {isDraft && (
+                            <button className="btn-small" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.5rem', background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => onRemoveProof(doc.id)}>
+                              ✕ Remove
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      
+                      {!isDraft && !doc && (
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No document uploaded</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          // Fallback generic upload (for categories without count)
+          const fallbackDocs = entry?.proof_documents?.filter(d => d.item_index == null || d.item_index === undefined) || [];
+          return (
+            <>
+              {isDraft && (
+                <div className="category-upload">
+                  <FileUpload
+                    onFileSelect={(file) => onUpload(file)}
+                    uploading={uploading}
+                    maxFiles={maxAttachments}
+                    uploadedFiles={
+                      fallbackDocs.map((doc: any) => ({
+                        id: doc.id,
+                        name: doc.file_name,
+                        size: doc.file_size,
+                        url: getFileUrl(doc.file_path)
+                      }))
+                    }
+                    onRemove={(idx) => onRemoveProof(fallbackDocs[idx].id)}
+                  />
+                </div>
+              )}
+
+              {!isDraft && fallbackDocs.length > 0 && (
+                <div className="category-docs">
+                  {fallbackDocs.map((doc: any) => (
+                    <a key={doc.id} href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer' }}>
+                      📄 {doc.file_name}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {isDraft && (

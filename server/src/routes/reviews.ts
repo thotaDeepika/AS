@@ -4,6 +4,7 @@ import { ApplicationStatus, AuditAction, ReviewDecision, Role } from '@prisma/cl
 import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js';
+import { upload } from '../lib/upload.js';
 
 const router = Router();
 router.use(authenticate);
@@ -11,16 +12,18 @@ router.use(authenticate);
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const reviewSchema = z.object({
-  decision: z.enum(['RECOMMENDED', 'NOT_RECOMMENDED', 'APPROVED', 'REJECTED']),
+  decision: z.enum(['RECOMMENDED', 'NOT_RECOMMENDED', 'APPROVED', 'REJECTED', 'REVERTED']),
   comments: z.string().max(2000).optional(),
+  reviewer_score: z.number().min(0).max(1000).optional(),
+  signature_path: z.string().optional(),
 });
 
 // Workflow transition map — which status + role combinations are valid
 const WORKFLOW_TRANSITIONS: Record<string, { allowedRoles: Role[]; nextStatus: ApplicationStatus; allowedDecisions: ReviewDecision[] }> = {
   [ApplicationStatus.SUBMITTED]: {
     allowedRoles: [Role.HOD],
-    nextStatus: ApplicationStatus.HOD_REVIEWED,
-    allowedDecisions: [ReviewDecision.RECOMMENDED, ReviewDecision.NOT_RECOMMENDED],
+    nextStatus: ApplicationStatus.HOD_REVIEWED, // Default next status
+    allowedDecisions: [ReviewDecision.RECOMMENDED, ReviewDecision.NOT_RECOMMENDED, ReviewDecision.REVERTED],
   },
   [ApplicationStatus.REVIEWER_ASSIGNED]: {
     allowedRoles: [Role.REVIEWER],
@@ -34,15 +37,29 @@ const WORKFLOW_TRANSITIONS: Record<string, { allowedRoles: Role[]; nextStatus: A
   },
 };
 
+// ─── POST /api/reviews/upload-signature — Upload signature image ────────────
+
+router.post('/upload-signature', upload.single('file'), (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) throw new ValidationError('No signature file provided');
+    res.json({
+      success: true,
+      data: { file_path: req.file.path.replace(/\\/g, '/') }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ─── POST /api/reviews/:applicationId — Submit a review ──────────────────────
 
 router.post('/:applicationId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { decision, comments } = reviewSchema.parse(req.body);
+    const { decision, comments, reviewer_score, signature_path } = reviewSchema.parse(req.body);
     const user = req.user!;
 
     const application = await prisma.application.findUnique({
-      where: { id: req.params.applicationId },
+      where: { id: req.params.applicationId as string },
       include: { faculty: { select: { department_id: true } } },
     });
 
@@ -66,7 +83,7 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
 
     // Role-specific access control
     if (user.role === Role.HOD) {
-      if (application.faculty.department_id !== user.department_id) {
+      if ((application as any).faculty.department_id !== user.department_id) {
         throw new ForbiddenError('Cannot review applications outside your department');
       }
     }
@@ -84,13 +101,28 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
         role_at_review: user.role as Role,
         decision: decision as ReviewDecision,
         comments: comments || null,
+        signature_path: signature_path || null,
       },
     });
 
-    // Update application status
+    // Update application status and reviewer_score if provided
+    let finalNextStatus = transition.nextStatus;
+    if (decision === 'REVERTED') {
+      finalNextStatus = 'REVERTED' as ApplicationStatus;
+    }
+
+    const updateData: any = { status: finalNextStatus };
+    if (user.role === Role.REVIEWER) {
+      // If reviewer didn't explicitly edit individual entries, reviewer_score might be null.
+      // Set it to match the total_score to indicate they accepted the system scores.
+      if (application.reviewer_score === null) {
+        updateData.reviewer_score = application.total_score;
+      }
+    }
+
     const updated = await prisma.application.update({
       where: { id: application.id },
-      data: { status: transition.nextStatus },
+      data: updateData,
     });
 
     // Audit log
@@ -125,17 +157,91 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
   }
 });
 
+// ─── PUT /api/reviews/:applicationId/entry/:categoryId/score — Update reviewer score ──
+
+router.put('/:applicationId/entry/:categoryId/score', authorize(Role.REVIEWER), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const applicationId = req.params.applicationId as string;
+    const categoryId = req.params.categoryId as string;
+    const { reviewer_score } = req.body;
+    const user = req.user!;
+
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: { category_entries: { include: { category: true } } },
+    });
+
+    if (!application) throw new NotFoundError('Application');
+    if (application.reviewer_id !== user.id) throw new ForbiddenError('This application is not assigned to you');
+    if (application.status !== 'REVIEWER_ASSIGNED') throw new ValidationError('Application is not in REVIEWER_ASSIGNED status');
+
+    const entry = await prisma.categoryEntry.findUnique({
+      where: { application_id_category_id: { application_id: applicationId, category_id: categoryId } },
+    });
+
+    if (!entry) throw new NotFoundError('Category Entry');
+
+    const newScore = reviewer_score === '' || reviewer_score === null ? null : Number(reviewer_score);
+
+    // Update the entry
+    await prisma.categoryEntry.update({
+      where: { id: entry.id },
+      data: { reviewer_score: newScore },
+    });
+
+    // Recalculate total_score
+    const allEntries = await prisma.categoryEntry.findMany({
+      where: { application_id: applicationId },
+    });
+
+    let newTotal = 0;
+    const sectionTotals = { teaching: 0, research: 0, service: 0 };
+    
+    for (const e of allEntries) {
+      const val = Number(e.reviewer_score !== null ? e.reviewer_score : e.calculated_score);
+      newTotal += val;
+      
+      const category = (application as any).category_entries.find((x: any) => x.id === e.id)?.category;
+      if (category) {
+        if (category.section === 'TEACHING') sectionTotals.teaching += val;
+        else if (category.section === 'RESEARCH') sectionTotals.research += val;
+        else if (category.section === 'SERVICE') sectionTotals.service += val;
+      }
+    }
+
+    // Update application total
+    const updatedApp = await prisma.application.update({
+      where: { id: applicationId },
+      data: { final_score: newTotal, reviewer_score: newTotal },
+    });
+
+    res.json({
+      success: true,
+      message: 'Reviewer score updated',
+      data: {
+        total_score: updatedApp.total_score,
+        reviewer_score: updatedApp.reviewer_score,
+        final_score: updatedApp.final_score,
+        section_scores: sectionTotals
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ─── GET /api/reviews/:applicationId — Get reviews for an application ────────
 
 router.get('/:applicationId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const applicationId = req.params.applicationId as string;
     const application = await prisma.application.findUnique({
-      where: { id: req.params.applicationId },
+      where: { id: applicationId },
     });
     if (!application) throw new NotFoundError('Application');
 
     const reviews = await prisma.review.findMany({
-      where: { application_id: req.params.applicationId },
+      where: { application_id: applicationId },
       include: {
         reviewer: { select: { id: true, name: true, role: true, email: true } },
       },

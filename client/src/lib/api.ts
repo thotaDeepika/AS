@@ -32,6 +32,12 @@ api.interceptors.response.use(
 
 export default api;
 
+export const getFileUrl = (filePath: string) => {
+  if (!filePath) return '';
+  const normalized = filePath.replace(/\\/g, '/');
+  return `/${normalized}`;
+};
+
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -83,13 +89,19 @@ export const applicationsApi = {
   saveEntry: (appId: string, category_id: string, raw_value: Record<string, any>) =>
     api.put(`/applications/${appId}/entry`, { category_id, raw_value }),
 
-  uploadProof: (appId: string, categoryId: string, file: File) => {
+  uploadProof: (appId: string, categoryId: string, file: File, itemIndex?: number) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post(`/applications/${appId}/upload/${categoryId}`, fd, {
+    const url = itemIndex !== undefined 
+      ? `/applications/${appId}/upload/${categoryId}?item_index=${itemIndex}`
+      : `/applications/${appId}/upload/${categoryId}`;
+    return api.post(url, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
+  deleteProof: (appId: string, docId: string) =>
+    api.delete(`/applications/${appId}/proof/${docId}`),
 
   submit: (appId: string) =>
     api.post(`/applications/${appId}/submit`),
@@ -107,8 +119,17 @@ export const applicationsApi = {
 // ─── Reviews API ──────────────────────────────────────────────────────────────
 
 export const reviewsApi = {
-  submit: (appId: string, decision: string, comments: string) =>
-    api.post(`/reviews/${appId}`, { decision, comments }),
+  submit: (appId: string, decision: string, comments: string, reviewer_score?: number | '', signature_path?: string) =>
+    api.post(`/reviews/${appId}`, { decision, comments, signature_path, reviewer_score: reviewer_score !== '' && reviewer_score !== undefined ? Number(reviewer_score) : undefined }),
+
+  uploadSignature: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/reviews/upload-signature', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+
+  updateEntryScore: (appId: string, categoryId: string, reviewer_score: number | '') =>
+    api.put(`/reviews/${appId}/entry/${categoryId}/score`, { reviewer_score }),
 };
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
@@ -116,10 +137,15 @@ export const reviewsApi = {
 export const adminApi = {
   stats: () => api.get('/admin/stats'),
 
+  approvalsRejections: () => api.get('/admin/approvals-rejections'),
+
   scoringCategories: () => api.get('/admin/scoring-categories'),
 
   auditLogs: (params?: Record<string, string>) =>
     api.get('/admin/audit-logs', { params }),
+
+  overrideApplication: (facultyId: string, action: 'EDIT' | 'OPEN') =>
+    api.post(`/admin/override-application/${facultyId}`, { action }),
 
   assignReviewer: (appId: string, reviewerId: string) =>
     api.post('/admin/assign-reviewer', { application_id: appId, reviewer_id: reviewerId }),
