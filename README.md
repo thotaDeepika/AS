@@ -1,365 +1,169 @@
-# 🎓 RIT Faculty Appraisal System
+# 🎓 Ramaiah Institute of Technology - Faculty Appraisal System
 
-A full-stack web application for managing the faculty performance appraisal lifecycle at Ramaiah Institute of Technology (RIT). The system automates the entire appraisal pipeline — from faculty self-assessment and proof-document upload through multi-stage review (HOD → Reviewer → Principal) to final Accounts processing.
+![License](https://img.shields.io/badge/License-Proprietary-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=flat&logo=node.js&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat&logo=postgresql&logoColor=white)
 
----
-
-## ✨ Features
-
-### 🔄 Multi-Stage Appraisal Workflow
-The system implements a **8-stage pipeline** that mirrors the real institutional process:
-
-```
-Faculty (Draft → Submit) → HOD Review → Admin Assigns Reviewer
-   → Reviewer Review → Admin Forwards → Principal Approval
-   → Admin Freezes → Accounts Processing
-```
-
-Each stage enforces role-based permissions — only the authorized role can advance an application to the next step.
-
-### 👥 Role-Based Dashboards (6 Roles)
-
-| Role | Capabilities |
-|------|-------------|
-| **Faculty** | Create appraisals, fill 23 scoring categories, upload PDF proofs, track status |
-| **HOD** | Review department applications, recommend or reject with comments |
-| **Reviewer** | External expert review of assigned applications |
-| **Principal** | Final approval authority, view consolidated department summaries |
-| **Admin** | Full system management — users, scoring config, reviewer assignment, audit logs |
-| **Accounts** | Process approved appraisals, mark as sent to accounts for salary increments |
-
-### 📊 Automated Scoring Engine
-- **23 categories** across 3 sections: Teaching (1), Research (11), Service (11)
-- Scoring rules are **designation-aware** — different weightages for Assistant Professor, Associate Professor, and Professor
-- **Bonus Multipliers** — Scores for specific high-value research and funding categories (2, 7, 10, 11) are automatically doubled.
-- Scores calculated automatically based on faculty input and configurable formulas
-- Per-category max weightage enforcement
-
-### 📁 Document Management
-- **Multi-file PDF upload** per category (up to 5 files per category)
-- Files stored on server disk at `./uploads/` with unique filenames
-- Max file size: 10MB (configurable via `.env`)
-
-### 📄 Report Generation
-- **Individual PDF Reports** — Auto-generated 2-part official document (Summary Form + Detailed Information Annexure). Features dynamic rendering of faculty data, review history, and verified digital signatures (image or text hash) for the HoD, Reviewer, and Principal.
-- **Consolidated Excel Reports** — 3-sheet workbook (Summary, Detail, Category Breakdown) for departments or entire institution
-- Available to Admin, Principal, and Accounts roles
-
-### 🔍 Full Audit Trail
-- Every action logged — logins, submissions, reviews, status changes
-- Filterable audit log page for Admin
-- Includes IP address, user info, and detailed JSON payloads
-
-### 🎨 Dark & Light Theme
-- **Dark mode** (default) — Premium dark UI with indigo accents
-- **Light mode** — Clean white theme for daylight use
-- Toggle in the header, preference saved in browser localStorage
+An enterprise-grade, full-stack web application architected to digitize and automate the faculty performance appraisal lifecycle at **Ramaiah Institute of Technology (RIT)**. The platform orchestrates the complete appraisal pipeline—from faculty self-assessment and secure proof-document upload through a strict multi-stage peer and administrative review process, concluding with verified Accounts processing.
 
 ---
 
-## 🛠️ Tech Stack
+## 🌟 Key Features
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18 + TypeScript, Vite |
-| **Styling** | Vanilla CSS with custom design system, Inter font (Google Fonts) |
-| **Backend** | Express.js + TypeScript |
-| **ORM** | Prisma |
-| **Database** | PostgreSQL (Supabase-hosted or local Docker) |
-| **Authentication** | JWT (bcrypt for password hashing, jsonwebtoken for tokens) |
-| **File Upload** | Multer (disk storage) |
-| **PDF Reports** | PDFKit |
-| **Excel Reports** | ExcelJS |
-| **DevOps** | Docker Compose (PostgreSQL + Server + Client) |
+### 🔄 Multi-Stage Lifecycle Engine
+The platform encodes the institution's official appraisal policies into a rigid **8-stage state machine**:
+```mermaid
+graph LR
+    A[Faculty Draft] --> B[HOD Review]
+    B --> C[Admin Assigns Reviewer]
+    C --> D[Peer Review]
+    D --> E[Admin Forwards]
+    E --> F[Principal Approval]
+    F --> G[Admin Freezes]
+    G --> H[Accounts Processing]
+```
+Each transition enforces strict Role-Based Access Control (RBAC), ensuring that applications can only be advanced or reverted by the legally authorized role for that specific stage.
+
+### 🛡️ Role-Based Architecture (RBAC)
+The system is divided into 6 distinct organizational roles, each featuring personalized dashboards and restricted data access matrices:
+- **👨‍🏫 Faculty:** Draft self-assessments, populate 23 scoring metrics, securely upload PDF proofs, and monitor application progress.
+- **🧑‍💼 HOD (Head of Department):** Evaluate departmental applications, append official comments, and issue primary recommendations or reversions.
+- **🕵️ Reviewer:** External domain experts who perform secondary audits on assigned applications.
+- **🏛️ Principal:** The ultimate approving authority with access to high-level departmental analytics and consolidated scoring matrices.
+- **⚙️ Admin:** Master system controllers managing user provisioning, scoring configurations, reviewer assignments, and complete audit trail oversight.
+- **💼 Accounts:** Financial processors authorized to view frozen, approved applications to trigger salary increments.
+
+### 📊 Dynamic Scoring & Analytics Engine
+A sophisticated backend calculation engine evaluates faculty inputs against institutional rubrics:
+- **Comprehensive Metrics:** 23 distinct categories across 3 sections (Teaching, Research, Service).
+- **Designation-Aware Logic:** Automatically scales weightages and max-caps based on whether the faculty is an Assistant Professor, Associate Professor, or Professor.
+- **Bonus Multipliers:** Core institutional priorities (e.g., Q1/Q2 Indexed Journals, Funded Projects, PhD Guidance, Patents) automatically receive a `2x` score multiplier to incentivize high-value academic output.
+- **Real-time Evaluation:** Scores are instantly calculated and capped according to the dynamic `ScoringRules` tables in the database.
+
+### 📄 Advanced Reporting & Document Generation
+- **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures (image-based or cryptographic hash fallbacks) from the HOD, Reviewer, and Principal.
+- **Consolidated Excel Exports:** Generates multi-sheet Excel workbooks detailing institutional and departmental summaries, empowering the Principal and Accounts teams with actionable analytics.
+
+### 🔒 Security & Audit Compliance
+- **Cryptographic Authentication:** JWT-based stateless authentication with `bcrypt` password hashing.
+- **Immutable Audit Trail:** Every state transition, login, and administrative action is permanently logged with IP tracking, JSON payload snapshots, and timestamping.
+- **Secure File Storage:** Proof documents are sanitized and stored securely via Multer, with strict MIME-type validation and a 10MB per-file configurable ceiling.
+
+---
+
+## 🛠️ Technology Stack
+
+**Frontend Architecture:**
+- **Core:** React 18, TypeScript, Vite
+- **Styling:** Custom Vanilla CSS Design System with CSS Variables, native Dark/Light mode support, and Inter typography.
+- **Routing & State:** React Router DOM, Context API.
+
+**Backend Infrastructure:**
+- **Server:** Node.js, Express.js, TypeScript
+- **Database:** PostgreSQL
+- **ORM:** Prisma (Type-safe database client)
+- **Utilities:** `pdfkit` (Report Generation), `exceljs` (Analytics Exports), `multer` (File handling), `jsonwebtoken` (Auth).
+
+**DevOps & Deployment:**
+- Docker & Docker Compose (Containerized DB, Server, and Client)
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js** ≥ 18
-- **PostgreSQL** database (or use Docker Compose / Supabase)
-- **npm** (comes with Node.js)
+- **Node.js** (v18 or higher)
+- **PostgreSQL** (v14 or higher) or Docker Desktop
+- **Git**
 
-### Option 1: Local Development (Recommended)
+### Local Development Setup
 
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/27-MANISH/appraisal-system.git
+   cd appraisal-system
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   npm install
+   cd server && npm install && cd ..
+   cd client && npm install && cd ..
+   ```
+
+3. **Environment Configuration**
+   Copy the example environment file and configure your local credentials:
+   ```bash
+   cp .env.example .env
+   ```
+   *Ensure you update the `DATABASE_URL` with your valid PostgreSQL connection string.*
+
+4. **Database Migration & Seeding**
+   Provision the database schema and inject the default scoring rules and admin account:
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   npx tsx server/src/seed.ts
+   ```
+
+5. **Launch Application**
+   Boot both the frontend and backend concurrently:
+   ```bash
+   npm run dev
+   ```
+   - **Frontend:** `http://localhost:5173`
+   - **Backend API:** `http://localhost:3001`
+
+### Docker Deployment
+For an isolated environment, utilize the provided Docker Compose configuration:
 ```bash
-# 1. Clone the repository
-git clone https://github.com/27-MANISH/appraisal-system.git
-cd appraisal-system
-
-# 2. Install all dependencies (root + client + server workspaces)
-npm install
-cd server && npm install && cd ..
-cd client && npm install && cd ..
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env with your PostgreSQL database URL and JWT secret
-
-# 4. Set up the database
-npx prisma generate
-npx prisma db push
-
-# 5. Seed the database with categories, scoring rules, and a default admin
-npx tsx server/src/seed.ts
-
-# 6. Start development servers (client + server concurrently)
-npm run dev
-```
-
-The app will be available at:
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3001
-
-### Option 2: Docker Compose
-
-```bash
-# Start all services (PostgreSQL + Backend + Frontend)
-docker-compose up --build
-
-# In another terminal, seed the database
-docker exec appraisal-server npx tsx src/seed.ts
-```
-
-### Default Login Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@rit.edu` | `Admin@123` |
-
-> After logging in as Admin, use the **User Management** page to create faculty, HOD, reviewer, principal, and accounts users.
-
----
-
-## 📂 Project Structure
-
-```
-appraisal-system/
-├── client/                      # React + Vite frontend
-│   ├── src/
-│   │   ├── components/          # Reusable UI components
-│   │   │   ├── AppLayout.tsx    # Main layout with sidebar, header, theme toggle
-│   │   │   ├── DataTable.tsx    # Sortable, searchable data table
-│   │   │   ├── FileUpload.tsx   # Drag-and-drop file upload (multi-file)
-│   │   │   ├── ScoreCard.tsx    # Score display with progress bar
-│   │   │   └── StatusBadge.tsx  # Color-coded status pills
-│   │   ├── context/
-│   │   │   └── AuthContext.tsx  # JWT auth state management
-│   │   ├── lib/
-│   │   │   └── api.ts           # Axios API client with interceptors
-│   │   ├── pages/               # 11 route pages
-│   │   │   ├── LoginPage.tsx
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── ApplicationsPage.tsx
-│   │   │   ├── ReviewsPage.tsx
-│   │   │   ├── UsersPage.tsx
-│   │   │   ├── ScoringPage.tsx
-│   │   │   ├── AssignReviewersPage.tsx
-│   │   │   ├── PrincipalDashboardPage.tsx
-│   │   │   ├── AccountsDashboardPage.tsx
-│   │   │   ├── ReportsPage.tsx
-│   │   │   └── AuditLogsPage.tsx
-│   │   ├── App.tsx              # Router setup with protected routes
-│   │   ├── main.tsx             # Entry point
-│   │   └── index.css            # Complete design system (dark + light themes)
-│   ├── index.html
-│   └── vite.config.ts
-│
-├── server/                      # Express.js backend
-│   ├── src/
-│   │   ├── lib/
-│   │   │   ├── prisma.ts        # Prisma client singleton
-│   │   │   ├── errors.ts        # Custom error classes
-│   │   │   ├── upload.ts        # Multer configuration
-│   │   │   ├── scoreEngine.ts   # Automated score calculation engine
-│   │   │   └── reportGenerator.ts # PDF & Excel report generation
-│   │   ├── middleware/
-│   │   │   ├── auth.ts          # JWT verification + role guards
-│   │   │   └── errorHandler.ts  # Global error handling
-│   │   ├── routes/
-│   │   │   ├── auth.ts          # Login/logout/me endpoints
-│   │   │   ├── users.ts         # CRUD for user management
-│   │   │   ├── departments.ts   # Department listing
-│   │   │   ├── applications.ts  # Full application lifecycle API
-│   │   │   ├── reviews.ts       # Review submission endpoints
-│   │   │   ├── admin.ts         # Scoring config, reviewer assignment, audit logs
-│   │   │   └── reports.ts       # PDF/Excel generation endpoints
-│   │   ├── index.ts             # Express app setup, CORS, routes
-│   │   └── seed.ts              # Database seeder (categories + rules + admin)
-│   ├── Dockerfile
-│   └── package.json
-│
-├── prisma/
-│   └── schema.prisma            # Database schema (9 models, 7 enums)
-│
-├── docs/                        # Architecture documentation
-│   ├── FINAL_SCORING.md         # All 23 categories and designation rules
-│   ├── FINAL_WORKFLOW.md        # Detailed appraisal workflow states
-│   ├── FINAL_RBAC.md            # Role permissions matrix
-│   ├── FINAL_DB_SCHEMA.md       # Complete entity-relationship design
-│   ├── FACULTY_APPLICATION_FIELDS.md  # Form fields and input types
-│   ├── DEPLOYMENT.md            # Setup, configuration, production deployment
-│   └── ...                      # Additional design documents
-│
-├── docker-compose.yml           # PostgreSQL + Server + Client containers
-├── .env.example                 # Environment variable template
-├── .gitignore
-└── package.json                 # Monorepo workspace config
-```
-
----
-
-## 🗄️ Database Schema
-
-The system uses **9 models** in PostgreSQL via Prisma:
-
-| Model | Purpose |
-|-------|---------|
-| `Department` | Academic departments (CSE, ISE, ECE, etc.) |
-| `User` | All users with role, designation, and department |
-| `Application` | Faculty appraisal submissions per academic year |
-| `ScoringCategory` | 23 scoring categories (Teaching / Research / Service) |
-| `ScoringRule` | Per-category, per-designation weightage and formula |
-| `CategoryEntry` | Faculty input values per category per application |
-| `ProofDocument` | Uploaded PDF proof files linked to category entries |
-| `Review` | Review decisions and comments from HOD/Reviewer/Principal |
-| `AuditLog` | Full action log with user, action, entity, and metadata |
-
-### Key Relationships
-- A **User** belongs to a **Department**
-- An **Application** belongs to a **User** (faculty) and optionally has an assigned **Reviewer**
-- Each **Application** has many **CategoryEntries** (one per scoring category filled)
-- Each **CategoryEntry** can have multiple **ProofDocuments** (PDF uploads)
-- **ScoringRules** define max weightage per category per designation
-
----
-
-## ⚙️ Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```env
-# Database (PostgreSQL connection strings)
-DATABASE_URL="postgresql://..."       # Pooled connection (for Prisma queries)
-DIRECT_URL="postgresql://..."         # Direct connection (for migrations)
-
-# JWT Authentication
-JWT_SECRET="your-secret-key"          # Change this in production!
-JWT_EXPIRES_IN="24h"
-
-# Server
-PORT=3001
-CLIENT_URL="http://localhost:5173"    # CORS origin
-NODE_ENV="development"
-
-# File Upload
-UPLOAD_DIR="./uploads"                # Where PDFs are stored on disk
-MAX_FILE_SIZE_MB=10                   # Maximum upload size per file
-```
-
----
-
-## 📋 Scoring System
-
-The appraisal form consists of **23 categories** divided into 3 sections:
-
-| Section | Categories | Description |
-|---------|-----------|-------------|
-| **Teaching** | 1 category | Teaching load assessment |
-| **Research** | 11 categories | Publications, patents, funded projects, PhD guidance, etc. |
-| **Service** | 11 categories | Administrative roles, committee work, extension activities, etc. |
-
-Each category has **designation-specific scoring rules**:
-- Different max weightage for Assistant Professor, Associate Professor, and Professor
-- Configurable formulas (per-unit scoring, boolean flags, numerical inputs)
-
-For the complete breakdown, see [docs/FINAL_SCORING.md](docs/FINAL_SCORING.md).
-
----
-
-## 🔐 Authentication & Authorization
-
-- **JWT-based authentication** — tokens issued on login, validated on every API call
-- **Role-based access control (RBAC)** — 6 roles with distinct permissions
-- **Middleware guards** — `requireAuth()` and `requireRole(...)` on every route
-- **Password hashing** — bcrypt with salt rounds
-
-For the full permissions matrix, see [docs/FINAL_RBAC.md](docs/FINAL_RBAC.md).
-
----
-
-## 📖 API Endpoints
-
-| Method | Endpoint | Description | Roles |
-|--------|----------|-------------|-------|
-| `POST` | `/api/auth/login` | Login | Public |
-| `GET` | `/api/auth/me` | Current user info | All |
-| `GET/POST` | `/api/users` | List / Create users | Admin |
-| `GET` | `/api/departments` | List departments | All |
-| `GET/POST` | `/api/applications` | List / Create applications | Faculty, Admin, HOD, etc. |
-| `PATCH` | `/api/applications/:id/submit` | Submit application | Faculty |
-| `POST` | `/api/applications/:id/entries` | Save category entry | Faculty |
-| `POST` | `/api/applications/:id/upload` | Upload proof document | Faculty |
-| `POST` | `/api/reviews` | Submit review | HOD, Reviewer, Principal |
-| `PATCH` | `/api/admin/applications/:id/assign-reviewer` | Assign reviewer | Admin |
-| `PATCH` | `/api/admin/applications/:id/freeze` | Freeze application | Admin |
-| `PATCH` | `/api/admin/applications/:id/send-to-accounts` | Send to accounts | Admin |
-| `GET` | `/api/admin/scoring-categories` | List scoring config | Admin |
-| `GET` | `/api/admin/audit-logs` | View audit trail | Admin |
-| `GET` | `/api/reports/individual/:id` | Download individual PDF | Admin, Principal, Accounts |
-| `GET` | `/api/reports/consolidated` | Download Excel report | Admin, Principal, Accounts |
-
----
-
-## 📖 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [Deployment Guide](docs/DEPLOYMENT.md) | Setup, configuration, and production deployment |
-| [Appraisal Workflow](docs/FINAL_WORKFLOW.md) | Detailed 8-stage workflow with status transitions |
-| [Scoring Rules](docs/FINAL_SCORING.md) | All 23 categories, designation rules, and formulas |
-| [RBAC Permissions](docs/FINAL_RBAC.md) | Role-based permissions matrix |
-| [Database Schema](docs/FINAL_DB_SCHEMA.md) | Complete ER design with field descriptions |
-| [Form Fields](docs/FACULTY_APPLICATION_FIELDS.md) | All 23 form fields, input types, and validation |
-
----
-
-## 🐳 Docker Deployment
-
-The `docker-compose.yml` provides a complete local environment:
-
-```bash
-# Start everything
+# Boot the containerized environment in detached mode
 docker-compose up --build -d
 
-# Check logs
-docker-compose logs -f server
-
-# Seed the database
+# Seed the database within the running server container
 docker exec appraisal-server npx tsx src/seed.ts
-
-# Stop
-docker-compose down
 ```
 
-**Services:**
-- `db` — PostgreSQL 16 Alpine on port 5432
-- `server` — Express API on port 3001
-- `client` — Vite dev server on port 5173
+### Default System Access
+The seeder creates a master administrative account. Use this account to provision other roles.
+- **Email:** `admin@rit.edu`
+- **Password:** `Admin@123`
 
 ---
 
-## 🤝 Contributing
+## 🗄️ Database Architecture
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit changes (`git commit -m 'feat: add my feature'`)
-4. Push to the branch (`git push origin feature/my-feature`)
-5. Open a Pull Request
+The system leverages a robust relational schema managed by Prisma:
+
+- `User` / `Department`: Organizational hierarchy mapping.
+- `Application` / `CategoryEntry` / `ProofDocument`: The core appraisal payload, linking faculty input directly to physical uploaded proofs.
+- `ScoringCategory` / `ScoringRule`: The dynamic configuration engine that defines max scores and multipliers per designation.
+- `Review`: Stores the chain of approval, comments, decisions, and digital signatures.
+- `AuditLog`: The immutable ledger of system activity.
+
+*(For the complete Entity-Relationship diagrams, refer to `docs/FINAL_DB_SCHEMA.md`)*
 
 ---
+
+## 📖 Official Documentation Directory
+
+The `docs/` folder contains the official architectural blueprints:
+
+1. **[FINAL_WORKFLOW.md](docs/FINAL_WORKFLOW.md)** - Detailed mapping of the 8-stage state machine.
+2. **[FINAL_SCORING.md](docs/FINAL_SCORING.md)** - Mathematical formulas and designation weightages for all 23 categories.
+3. **[FINAL_RBAC.md](docs/FINAL_RBAC.md)** - The strict Role-Based Access Control matrix.
+4. **[FINAL_DB_SCHEMA.md](docs/FINAL_DB_SCHEMA.md)** - Database ER models.
+5. **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production hardening and deployment guidelines.
+
+---
+
+## 🤝 Contributing & Maintenance
+This repository is maintained by the RIT Development Team. To contribute:
+1. Create a descriptive feature branch (`git checkout -b feat/your-feature-name`).
+2. Adhere to the existing TypeScript interfaces and Prisma schemas.
+3. Submit a Pull Request targeting the `main` branch.
 
 ## 📄 License
-
-This project is developed for Ramaiah Institute of Technology (RIT) internal use.
+This software is proprietary and developed exclusively for the internal operations of **Ramaiah Institute of Technology**. All rights reserved.
