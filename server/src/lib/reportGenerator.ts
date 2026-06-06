@@ -80,276 +80,230 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   const mutedText = '#333333';
   const lineColor = '#cccccc';
 
-  // ── Header ──
-  doc.rect(0, 0, doc.page.width, 100).fill('#ffffff');
-  doc.fill('#000000')
-    .fontSize(22).font('Helvetica-Bold')
-    .text('FACULTY APPRAISAL FORM', 50, 25, { align: 'center' });
-  doc.fontSize(11).font('Helvetica')
-    .text('Ramaiah Institute of Technology', 50, 52, { align: 'center' });
-  doc.fontSize(10)
-    .text(`Academic Year: ${app.academic_year}`, 50, 70, { align: 'center' });
+  // Helper for drawing tables
+  function drawTable(startY: number, colWidths: number[], headers: string[], rows: string[][], drawBorders = true) {
+    let y = startY;
+    const padding = 5;
 
-  try {
-    const logoPath = path.join(__dirname, 'logo.png');
-    doc.image(logoPath, doc.page.width - 120, 20, { width: 70 });
-  } catch (err) {
-    console.error('Logo not found', err);
+    function checkPageBreak(requiredHeight: number) {
+      if (y + requiredHeight > doc.page.height - 50) {
+        doc.addPage();
+        y = 50;
+      }
+    }
+
+    // Draw header
+    checkPageBreak(30);
+    let hx = 50;
+    doc.font('Helvetica-Bold').fontSize(9).fill('#000000');
+    
+    let maxHeaderHeight = 20;
+    for (let i = 0; i < headers.length; i++) {
+      const th = doc.heightOfString(headers[i] || ' ', { width: colWidths[i] - 2 * padding }) + 2 * padding;
+      if (th > maxHeaderHeight) maxHeaderHeight = th;
+    }
+    
+    if (drawBorders) {
+      doc.rect(50, y, colWidths.reduce((a, b) => a + b, 0), maxHeaderHeight).fillAndStroke('#f3f4f6', lineColor);
+    }
+    
+    doc.fill(darkText);
+    for (let i = 0; i < headers.length; i++) {
+      if (drawBorders) {
+        doc.rect(hx, y, colWidths[i], maxHeaderHeight).stroke(lineColor);
+      }
+      doc.text(headers[i] || '', hx + padding, y + padding, { width: colWidths[i] - 2 * padding, align: 'left' });
+      hx += colWidths[i];
+    }
+    y += maxHeaderHeight;
+
+    // Draw rows
+    doc.font('Helvetica').fontSize(9);
+    for (const row of rows) {
+      let maxRowHeight = 20;
+      for (let i = 0; i < row.length; i++) {
+        const th = doc.heightOfString(row[i] || ' ', { width: colWidths[i] - 2 * padding }) + 2 * padding;
+        if (th > maxRowHeight) maxRowHeight = th;
+      }
+
+      checkPageBreak(maxRowHeight);
+
+      let rx = 50;
+      for (let i = 0; i < row.length; i++) {
+        if (drawBorders) {
+          doc.rect(rx, y, colWidths[i], maxRowHeight).stroke(lineColor);
+        }
+        doc.text(row[i] || '', rx + padding, y + padding, { width: colWidths[i] - 2 * padding, align: 'left' });
+        rx += colWidths[i];
+      }
+      y += maxRowHeight;
+    }
+    return y;
   }
 
+  // ═════════════════════════════════════════════════════════════════════════════
+  // PART 1: SUMMARY FORM
+  // ═════════════════════════════════════════════════════════════════════════════
+
+  doc.fontSize(14).font('Helvetica-Bold').text('Ramaiah Institute of Technology, Bangalore - 560054', { align: 'center' });
+  doc.fontSize(11).font('Helvetica').text('(Autonomous Institute, affiliated to VTU)', { align: 'center' });
+  doc.moveDown(1.5);
+  doc.fontSize(12).font('Helvetica-Bold').text(`Annual Appraisal Form for the Year ${app.academic_year}`, { align: 'center' });
   doc.moveDown(2);
-  let y = 120;
 
-  // ── Faculty Information Box ──
-  doc.rect(50, y, doc.page.width - 100, 80).lineWidth(0.5).stroke(lineColor);
-  doc.fill(primaryColor).fontSize(11).font('Helvetica-Bold')
-    .text('FACULTY INFORMATION', 60, y + 8);
+  doc.fontSize(11).font('Helvetica-Bold').text(`Name: `, { continued: true }).font('Helvetica').text(app.faculty.name);
+  doc.moveDown(0.5);
+  doc.font('Helvetica-Bold').text(`Designation: `, { continued: true }).font('Helvetica').text(designationLabels[app.faculty.designation || ''] || 'N/A');
+  doc.moveDown(0.5);
+  doc.font('Helvetica-Bold').text(`Department: `, { continued: true }).font('Helvetica').text(app.faculty.department.name);
+  doc.moveDown(2);
 
-  y += 28;
-  doc.fill(darkText).fontSize(9).font('Helvetica');
-  const infoCol1 = 60;
-  const infoCol2 = 300;
-  doc.font('Helvetica-Bold').text('Name:', infoCol1, y).font('Helvetica').text(app.faculty.name, infoCol1 + 80, y);
-  doc.font('Helvetica-Bold').text('Department:', infoCol2, y).font('Helvetica').text(app.faculty.department.name, infoCol2 + 80, y);
-  y += 18;
-  doc.font('Helvetica-Bold').text('Designation:', infoCol1, y).font('Helvetica')
-    .text(designationLabels[app.faculty.designation || ''] || 'N/A', infoCol1 + 80, y);
-  doc.font('Helvetica-Bold').text('Status:', infoCol2, y).font('Helvetica')
-    .text(statusLabels[app.status] || app.status, infoCol2 + 80, y);
+  const summaryColWidths = [50, 350, 95];
+  const summaryHeaders = ['Sl. No.', 'Scoring Category', 'Number'];
+  const summaryRows: string[][] = [];
 
-  y += 35;
-
-  // ── Score Summary ──
-  const teaching = app.category_entries
-    .filter(e => e.category.section === 'TEACHING')
-    .reduce((sum, e) => sum + Number(e.calculated_score), 0);
-  const research = app.category_entries
-    .filter(e => e.category.section === 'RESEARCH')
-    .reduce((sum, e) => sum + Number(e.calculated_score), 0);
-  const service = app.category_entries
-    .filter(e => e.category.section === 'SERVICE')
-    .reduce((sum, e) => sum + Number(e.calculated_score), 0);
-  const total = Number(app.total_score);
-
-  doc.rect(50, y, doc.page.width - 100, 55).lineWidth(0.5).stroke(lineColor);
-  doc.fill(primaryColor).fontSize(11).font('Helvetica-Bold')
-    .text('SCORE SUMMARY', 60, y + 8);
-
-  y += 28;
-  const scoreBoxWidth = (doc.page.width - 140) / 4;
-  const scores = [
-    { label: 'Teaching', value: teaching.toFixed(1) },
-    { label: 'Research', value: research.toFixed(1) },
-    { label: 'Service', value: service.toFixed(1) },
-    { label: 'TOTAL', value: total.toFixed(1) },
-  ];
-  scores.forEach((s, i) => {
-    const sx = 60 + i * scoreBoxWidth;
-    doc.fill(mutedText).fontSize(8).font('Helvetica').text(s.label, sx, y);
-    doc.fill(i === 3 ? primaryColor : darkText).fontSize(14).font('Helvetica-Bold').text(s.value, sx, y + 10);
-  });
-
-  y += 45;
-
-  // ── Category Scores Table ──
-  doc.fill(primaryColor).fontSize(11).font('Helvetica-Bold').text('CATEGORY-WISE SCORES', 50, y);
-  y += 20;
-
-  // Table header
-  const colWidths = [30, 200, 100, 80, 80];
-  const headers = ['Sl', 'Category', 'Section', 'Score', 'Max'];
-  doc.rect(50, y, doc.page.width - 100, 18).fill('#f1f5f9');
-  let hx = 55;
-  doc.fill(darkText).fontSize(8).font('Helvetica-Bold');
-  headers.forEach((h, i) => {
-    doc.text(h, hx, y + 5, { width: colWidths[i] });
-    hx += colWidths[i];
-  });
-  y += 20;
-
-  // Table rows
   let currentSection = '';
   for (const entry of app.category_entries) {
-    if (y > doc.page.height - 80) {
-      doc.addPage();
-      y = 50;
-    }
-
     if (entry.category.section !== currentSection) {
       currentSection = entry.category.section;
-      doc.rect(50, y, doc.page.width - 100, 16).fill('#e5e7eb');
-      doc.fill(primaryColor).fontSize(8).font('Helvetica-Bold')
-        .text(sectionLabels[currentSection] || currentSection, 55, y + 4);
-      y += 18;
+      summaryRows.push(['', sectionLabels[currentSection] || currentSection, '']);
     }
+    const score = entry.reviewer_score !== null ? Number(entry.reviewer_score).toFixed(1) : Number(entry.calculated_score).toFixed(1);
+    summaryRows.push([String(entry.category.sl_no), entry.category.name, score]);
+  }
 
-    doc.fill(darkText).fontSize(8).font('Helvetica');
-    let rx = 55;
-    const rowData = [
-      String(entry.category.sl_no),
-      entry.category.name,
-      entry.category.section,
-      entry.reviewer_score !== null ? Number(entry.reviewer_score).toFixed(1) : Number(entry.calculated_score).toFixed(1),
-      '—',
-    ];
-    rowData.forEach((val, i) => {
-      doc.text(val, rx, y, { width: colWidths[i] });
-      rx += colWidths[i];
-    });
+  let yPos = drawTable(doc.y, summaryColWidths, summaryHeaders, summaryRows, true);
 
-    y += 16;
-    doc.moveTo(50, y).lineTo(doc.page.width - 50, y).lineWidth(0.3).stroke(lineColor);
-    y += 2;
+  yPos += 20;
+  if (yPos > doc.page.height - 150) { doc.addPage(); yPos = 50; }
+  
+  doc.rect(50, yPos, 495, 20).stroke(lineColor);
+  doc.font('Helvetica-Bold').fontSize(10).text('Total', 55, yPos + 5, { width: 395, align: 'right' });
+  doc.text(Number(app.total_score).toFixed(1), 455, yPos + 5);
+  
+  yPos += 60;
+  if (yPos > doc.page.height - 100) { doc.addPage(); yPos = 50; }
+  
+  doc.font('Helvetica-Bold').text('Signature of the Faculty', 50, yPos);
+  
+  function drawSignatureBlock(title: string, review: any, startY: number) {
+    if (startY > doc.page.height - 120) { doc.addPage(); startY = 50; }
+    doc.font('Helvetica-Bold').fontSize(10).text(title, 50, startY);
+    doc.font('Helvetica').fontSize(9).text(review?.comments || '_______________________________________', 50, startY + 15, { width: 450 });
+    
+    if (review) {
+      doc.font('Helvetica-Bold').text(`Decision: ${review.decision.replace(/_/g, ' ')}`, 50, startY + 35);
+      doc.text(`Date: ${formatDate(review.reviewed_at)}`, 50, startY + 50);
+      
+      const sigHash = `VERIFIED-${review.id.split('-')[0].toUpperCase()}`;
+      if (review.signature_path && fsSync.existsSync(review.signature_path)) {
+        doc.text('Signature:', 350, startY + 35);
+        try {
+          doc.image(review.signature_path, 350, startY + 50, { fit: [100, 30] });
+        } catch (e) {
+          doc.fill('#10b981').text(`[ VERIFIED ]\nID: ${sigHash}`, 350, startY + 50);
+          doc.fill('#000000');
+        }
+      } else {
+        const isPositive = ['RECOMMENDED', 'APPROVED'].includes(review.decision);
+        const color = isPositive ? '#10b981' : '#ef4444';
+        const icon = isPositive ? '[ APPROVED / VERIFIED ]' : '[ REVERTED ]';
+        doc.fill(color).text(`${icon}\nID: ${sigHash}`, 350, startY + 40);
+        doc.fill('#000000');
+      }
+    } else {
+      doc.font('Helvetica-Bold').text('Decision: _____________________', 50, startY + 35);
+      doc.text('Date: _____________________', 50, startY + 50);
+      doc.text('Signature', 350, startY + 50);
+    }
+    return startY + 80;
+  }
 
-    // Render documents and descriptions
+  const hodReviews = app.reviews.filter(r => r.reviewer.role === 'HOD');
+  const reviewerReviews = app.reviews.filter(r => r.reviewer.role === 'REVIEWER');
+  const principalReviews = app.reviews.filter(r => r.reviewer.role === 'PRINCIPAL');
+
+  const orderedReviews: { title: string, review: any }[] = [];
+  
+  // HOD
+  if (hodReviews.length > 0) {
+    hodReviews.forEach(r => orderedReviews.push({ title: 'Comments from HoD:', review: r }));
+  } else {
+    orderedReviews.push({ title: 'Comments from HoD:', review: null });
+  }
+
+  // REVIEWER
+  if (reviewerReviews.length > 0) {
+    reviewerReviews.forEach(r => orderedReviews.push({ title: 'Comments from Reviewer:', review: r }));
+  } else {
+    orderedReviews.push({ title: 'Comments from Reviewer:', review: null });
+  }
+
+  // PRINCIPAL
+  if (principalReviews.length > 0) {
+    principalReviews.forEach(r => orderedReviews.push({ title: 'Comments from Principal:', review: r }));
+  } else {
+    orderedReviews.push({ title: 'Comments from Principal:', review: null });
+  }
+
+  yPos += 30;
+  for (const item of orderedReviews) {
+    yPos = drawSignatureBlock(item.title, item.review, yPos);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // PART 2: DETAILED INFORMATION (Annexure)
+  // ═════════════════════════════════════════════════════════════════════════════
+
+  doc.addPage();
+
+  doc.fontSize(14).font('Helvetica-Bold').text('RAMAIAH INSTITUTE OF TECHNOLOGY', { align: 'center' });
+  doc.moveDown(0.5);
+  doc.fontSize(11).font('Helvetica').text('Detailed information for Annual Increment for Teaching Staff', { align: 'center' });
+  doc.moveDown(2);
+
+  const detailColWidths = [40, 150, 255, 50];
+  const detailHeaders = ['Sl.No', 'Scoring Category', 'Detailed Information', 'Appendix provided (Y/N)'];
+  const detailRows: string[][] = [];
+
+  for (const entry of app.category_entries) {
     const rawVal = entry.raw_value as any || {};
     const count = (rawVal.count || 0) + (rawVal.books || 0) + (rawVal.chapters || 0);
     const hasGlobalDocs = entry.proof_documents.some((d: any) => d.item_index == null);
 
-    if (count > 0 || hasGlobalDocs || rawVal.description) {
-      y += 4;
-      doc.fill(mutedText).fontSize(7).font('Helvetica-Bold');
-      
-      if (rawVal.description) {
-        doc.text(`Description: ${rawVal.description}`, 65, y, { width: doc.page.width - 130 });
-        y += doc.heightOfString(`Description: ${rawVal.description}`, { width: doc.page.width - 130 }) + 2;
-      }
-
-      for (let i = 0; i < count; i++) {
-        if (y > doc.page.height - 40) { doc.addPage(); y = 50; }
-        const itemDesc = rawVal[`item_desc_${i}`] || 'No description provided';
-        const itemDoc = entry.proof_documents.find((d: any) => d.item_index === i);
-        const docText = itemDoc ? `Attached: ${itemDoc.file_name}` : 'No attachment';
-        doc.fill(mutedText).fontSize(7).font('Helvetica')
-           .text(`• Item ${i+1}: ${itemDesc} [${docText}]`, 65, y, { width: doc.page.width - 130 });
-        y += doc.heightOfString(`• Item ${i+1}: ${itemDesc} [${docText}]`, { width: doc.page.width - 130 }) + 2;
-      }
-
-      // Global docs
-      const globalDocs = entry.proof_documents.filter((d: any) => d.item_index == null);
-      for (const d of globalDocs) {
-        if (y > doc.page.height - 40) { doc.addPage(); y = 50; }
-        doc.fill(mutedText).fontSize(7).font('Helvetica')
-           .text(`• Attached: ${d.file_name}`, 65, y, { width: doc.page.width - 130 });
-        y += doc.heightOfString(`• Attached: ${d.file_name}`, { width: doc.page.width - 130 }) + 2;
-      }
-      
-      y += 4;
-      doc.moveTo(50, y).lineTo(doc.page.width - 50, y).lineWidth(0.3).stroke(lineColor);
-      y += 2;
+    let detailsText = '';
+    
+    if (rawVal.description) {
+      detailsText += `${rawVal.description}\n`;
     }
+
+    for (let i = 0; i < count; i++) {
+      const itemDesc = rawVal[`item_desc_${i}`] || 'Item details missing';
+      detailsText += `${i + 1}. ${itemDesc}\n\n`;
+    }
+
+    if (!detailsText) {
+      detailsText = '-\n';
+    }
+
+    const hasProof = (count > 0 && entry.proof_documents.length > 0) || hasGlobalDocs;
+    const appendixText = hasProof ? 'Y' : 'N';
+
+    detailRows.push([
+      String(entry.category.sl_no),
+      entry.category.name,
+      detailsText.trim(),
+      appendixText
+    ]);
   }
 
-  y += 15;
-
-  // ── Review History ──
-  if (app.reviews.length > 0 && userRole !== 'FACULTY') {
-    if (y > doc.page.height - 120) {
-      doc.addPage();
-      y = 50;
-    }
-
-    doc.fill(primaryColor).fontSize(11).font('Helvetica-Bold').text('REVIEW HISTORY', 50, y);
-    y += 20;
-
-    for (const review of app.reviews) {
-      if (y > doc.page.height - 60) {
-        doc.addPage();
-        y = 50;
-      }
-
-      doc.fill(darkText).fontSize(9).font('Helvetica-Bold')
-        .text(`${review.reviewer.name} (${review.reviewer.role})`, 55, y);
-      doc.fill(mutedText).fontSize(8).font('Helvetica')
-        .text(`${review.decision} — ${formatDate(review.reviewed_at)}`, 350, y);
-      y += 14;
-      if (review.comments) {
-        doc.fill(darkText).fontSize(8).font('Helvetica')
-          .text(`Comments: ${review.comments}`, 55, y, { width: doc.page.width - 110 });
-        y += doc.heightOfString(`Comments: ${review.comments}`, { width: doc.page.width - 110 }) + 4;
-      }
-      y += 8;
-    }
-
-    y += 20;
-
-    // ── Digital Signatures ──
-    if (y > doc.page.height - 150) {
-      doc.addPage();
-      y = 50;
-    }
-
-    doc.fill(primaryColor).fontSize(11).font('Helvetica-Bold').text('DIGITAL SIGNATURES', 50, y);
-    y += 20;
-
-    // We will draw the signatures side-by-side or stacked. Let's stack them neatly in boxes.
-    for (const review of app.reviews) {
-      if (y > doc.page.height - 80) {
-        doc.addPage();
-        y = 50;
-      }
-
-      // Draw a signature box
-      doc.rect(50, y, doc.page.width - 100, 60).lineWidth(0.5).stroke('#cbd5e1');
-      
-      const sigHash = `VERIFIED-${review.id.split('-')[0].toUpperCase()}-${new Date(review.reviewed_at).getTime().toString(16).toUpperCase()}`;
-      
-      if (review.signature_path && fsSync.existsSync(review.signature_path)) {
-        // Draw the image instead of checkmark
-        try {
-          doc.image(review.signature_path, 65, y + 5, { fit: [100, 30], align: 'center', valign: 'center' });
-        } catch (e) {
-          doc.fill('#10b981').fontSize(12).font('Helvetica-Bold')
-             .text('✓ Image Error', 65, y + 15);
-        }
-      } else {
-        const isPositive = ['RECOMMENDED', 'APPROVED'].includes(review.decision);
-        const icon = isPositive ? '✓ Digitally Signed' : '✕ Digitally Signed';
-        const color = isPositive ? '#10b981' : '#ef4444';
-
-        doc.fill(color).fontSize(12).font('Helvetica-Bold')
-          .text(icon, 65, y + 15);
-      }
-      
-      doc.fill(darkText).fontSize(9).font('Helvetica-Bold')
-        .text(`${review.reviewer.name}`, 65, y + 30);
-      
-      doc.fill(mutedText).fontSize(8).font('Helvetica')
-        .text(`${review.reviewer.role.replace(/_/g, ' ')}`, 65, y + 42);
-
-      // Right side of the box
-      doc.fill(darkText).fontSize(8).font('Helvetica-Bold')
-        .text(`Decision: ${review.decision.replace(/_/g, ' ')}`, 300, y + 15);
-      
-      doc.fill(mutedText).fontSize(8).font('Helvetica')
-        .text(`Date: ${new Date(review.reviewed_at).toLocaleString('en-IN')}`, 300, y + 27);
-      
-      doc.fill('#94a3b8').fontSize(7).font('Courier')
-        .text(`ID: ${sigHash}`, 300, y + 39);
-
-      y += 70;
-    }
-  }
-
-  // ── Footer ──
-  const totalPages = doc.bufferedPageRange().count;
-  for (let i = 0; i < totalPages; i++) {
-    doc.switchToPage(i);
-    doc.fill(mutedText).fontSize(7).font('Helvetica')
-      .text(
-        `Generated: ${new Date().toLocaleString('en-IN')} | Page ${i + 1} of ${totalPages}`,
-        50,
-        doc.page.height - 30,
-        { align: 'center', width: doc.page.width - 100 }
-      );
-  }
+  drawTable(doc.y, detailColWidths, detailHeaders, detailRows, true);
 
   doc.end();
   const basePdfBuffer = await pdfBufferPromise;
 
   const mergedPdf = await PDFLibDoc.load(basePdfBuffer);
 
-  // Merge any uploaded PDF proofs
   for (const entry of app.category_entries) {
     for (const docInfo of entry.proof_documents) {
       if (docInfo.file_path && docInfo.file_name.toLowerCase().endsWith('.pdf')) {

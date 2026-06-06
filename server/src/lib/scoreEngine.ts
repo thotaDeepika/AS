@@ -57,10 +57,10 @@ export async function calculateCategoryScore(
     // ══════════════════════════════════════════════════════════════════════════
 
     // Category 2: Non-paid Refereed Journal Papers (SJR/Scopus/WoS)
-    // 1 paper = 100% of research weightage
+    // 1 paper = 100% of research weightage (Bonus: Doubled)
     case 2: {
       const papers = Number(rawValue.count || 0);
-      score = papers >= 1 ? sectionMax : 0;
+      score = (papers >= 1 ? sectionMax : 0) * 2;
       break;
     }
 
@@ -100,10 +100,10 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 7: Patents Granted — 1 patent = 50%
+    // Category 7: Patents Granted — 1 patent = 50% (Bonus: Doubled)
     case 7: {
       const count = Number(rawValue.count || 0);
-      score = (count * 50 / 100) * sectionMax;
+      score = (count * 50 / 100) * sectionMax * 2;
       break;
     }
 
@@ -121,14 +121,14 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 10: Research Guidance PhD — 1 batch = 7%
+    // Category 10: Research Guidance PhD — 1 batch = 7% (Bonus: Doubled)
     case 10: {
       const batches = Number(rawValue.count || 0);
-      score = (batches * 7 / 100) * sectionMax;
+      score = (batches * 7 / 100) * sectionMax * 2;
       break;
     }
 
-    // Category 11: Funded Projects (slab-based)
+    // Category 11: Funded Projects (slab-based) (Bonus: Doubled)
     case 11: {
       const amount = Number(rawValue.amount_lakhs || 0);
       let pct = 0;
@@ -136,7 +136,7 @@ export async function calculateCategoryScore(
       else if (amount >= 5) pct = 50;
       else if (amount >= 1) pct = 30;
       else if (amount > 0) pct = 20;
-      score = (pct / 100) * sectionMax;
+      score = (pct / 100) * sectionMax * 2;
       break;
     }
 
