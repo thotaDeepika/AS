@@ -502,7 +502,7 @@ code { font-family:'JetBrains Mono',monospace; background:var(--bg-elevated); pa
 .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
 .btn-secondary { padding:10px 20px; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:14px; font-weight:500; font-family:inherit; cursor:pointer; transition:all var(--transition); }
 .btn-secondary:hover { background:var(--bg-card); border-color:var(--accent); }
-.btn-small { padding:6px 14px; font-size:12px; font-weight:600; font-family:inherit; border-radius:6px; border:1px solid var(--border); background:var(--bg-elevated); color:var(--text-primary); cursor:pointer; transition:all var(--transition); white-space:nowrap; }
+.btn-small { padding:4px 12px; font-size:12px; font-weight:600; font-family:inherit; border-radius:6px; border:1px solid var(--border); background:var(--bg-elevated); color:var(--text-primary); cursor:pointer; transition:all var(--transition); white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; gap:6px; height: 32px; }
 .btn-small:hover { border-color:var(--accent); background:var(--bg-card); }
 .btn-small:disabled { opacity:0.4; cursor:not-allowed; }
 .btn-small.btn-danger { color:#ef4444; border-color:rgba(239,68,68,0.3); }
@@ -928,7 +928,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Download Button */
 .btn-download-pdf {
-  padding:6px 14px;
+  padding:4px 12px;
   background:rgba(239,68,68,0.1);
   color:#ef4444;
   border:1px solid rgba(239,68,68,0.3);
@@ -938,6 +938,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   cursor:pointer;
   transition:all var(--transition);
   white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  height: 32px;
 }
 .btn-download-pdf:hover:not(:disabled) {
   background:rgba(239,68,68,0.2);

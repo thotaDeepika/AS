@@ -140,9 +140,8 @@ export default function PrincipalDashboardPage() {
     {
       key: 'actions',
       header: '',
-      width: '180px',
       render: (row: Application) => (
-        <div className="cell-actions" style={{ display: 'flex', gap: '8px' }}>
+        <div className="cell-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
           <button
             className="btn-download-pdf"
             onClick={() => handleDownloadPDF(row.id, row.academic_year)}
