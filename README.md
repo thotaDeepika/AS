@@ -31,6 +31,7 @@ Each stage enforces role-based permissions — only the authorized role can adva
 ### 📊 Automated Scoring Engine
 - **23 categories** across 3 sections: Teaching (1), Research (11), Service (11)
 - Scoring rules are **designation-aware** — different weightages for Assistant Professor, Associate Professor, and Professor
+- **Bonus Multipliers** — Scores for specific high-value research and funding categories (2, 7, 10, 11) are automatically doubled.
 - Scores calculated automatically based on faculty input and configurable formulas
 - Per-category max weightage enforcement
 
@@ -40,7 +41,7 @@ Each stage enforces role-based permissions — only the authorized role can adva
 - Max file size: 10MB (configurable via `.env`)
 
 ### 📄 Report Generation
-- **Individual PDF Reports** — Formatted appraisal forms for any faculty
+- **Individual PDF Reports** — Auto-generated 2-part official document (Summary Form + Detailed Information Annexure). Features dynamic rendering of faculty data, review history, and verified digital signatures (image or text hash) for the HoD, Reviewer, and Principal.
 - **Consolidated Excel Reports** — 3-sheet workbook (Summary, Detail, Category Breakdown) for departments or entire institution
 - Available to Admin, Principal, and Accounts roles
 
