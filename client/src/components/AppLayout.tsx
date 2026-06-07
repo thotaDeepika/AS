@@ -46,16 +46,7 @@ export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+  // Theme removed as per user request
 
   if (!user) return null;
 
@@ -140,9 +131,7 @@ export default function AppLayout() {
             )}
           </div>
           <div className="header-right">
-            <button className="theme-toggle" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {theme === 'dark' ? '☀️' : '🌙'}
-            </button>
+            {/* Theme toggle removed */}
             <span className="header-badge" style={{ background: `${roleColors[user.role]}20`, color: roleColors[user.role], border: `1px solid ${roleColors[user.role]}40` }}>
               {roleLabels[user.role]}
             </span>
