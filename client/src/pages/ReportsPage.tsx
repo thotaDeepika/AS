@@ -44,7 +44,6 @@ export default function ReportsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const isFaculty = user?.role === 'FACULTY';
-  const isAdmin = user?.role === 'ADMIN';
   const canConsolidate = ['ADMIN', 'PRINCIPAL', 'ACCOUNTS'].includes(user?.role || '');
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const roleLabels: Record<string, string> = {
   ADMIN: 'Administrator',
