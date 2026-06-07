@@ -7,6 +7,7 @@ import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js
 import { calculateApplicationScores } from '../lib/scoreEngine.js';
 import upload from '../lib/upload.js';
 import { sendEmail } from '../lib/email.js';
+import { generateAppraisalPDF } from '../lib/reportGenerator.js';
 
 const router = Router();
 router.use(authenticate);
@@ -431,6 +432,9 @@ You have one application to be reviewed.`;
         final_score: totals.total,
         submitted_at: new Date(),
       },
+      include: {
+        faculty: true,
+      }
     });
 
     await prisma.auditLog.create({
@@ -442,6 +446,28 @@ You have one application to be reviewed.`;
         details: { totals },
       },
     });
+
+    // Generate PDF and send email to faculty
+    try {
+      const pdfBuffer = await generateAppraisalPDF(application.id, 'FACULTY');
+      const facultySubject = `Appraisal Application Submitted Successfully - ${updated.academic_year}`;
+      const facultyBody = `
+        <h2>Application Submitted</h2>
+        <p>Dear ${updated.faculty.name},</p>
+        <p>Your appraisal application for the academic year ${updated.academic_year} has been successfully submitted to the HOD for review.</p>
+        <p>Your calculated preliminary score is: <strong>${totals.total.toFixed(1)}</strong></p>
+        <p>Please find attached a copy of your submitted appraisal report for your records.</p>
+        <br/>
+        <p>Best regards,<br/>Admin Team</p>
+      `;
+      const filename = `appraisal_${updated.academic_year}_${application.id.slice(0, 8)}.pdf`;
+      
+      await sendEmail(updated.faculty.email, facultySubject, facultyBody, [
+        { filename, content: pdfBuffer, contentType: 'application/pdf' }
+      ]);
+    } catch (emailErr) {
+      console.error("Failed to generate PDF or send email to faculty:", emailErr);
+    }
 
     res.json({ success: true, data: { application: updated, scores: totals } });
   } catch (error) {
