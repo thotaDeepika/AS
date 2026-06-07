@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # ─── PostgreSQL Database ────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: appraisal-db-prod
+    restart: always
+    environment:
+      POSTGRES_DB: appraisal_db
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_prod_secure_password}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres} -d appraisal_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API Server ─────────────────────────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: appraisal-server-prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres_prod_secure_password}@db:5432/appraisal_db?schema=public
+      DIRECT_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres_prod_secure_password}@db:5432/appraisal_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-generate_a_secure_random_string_here_for_prod}
+      JWT_EXPIRES_IN: 24h
+      PORT: 3001
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      NODE_ENV: production
+      UPLOAD_DIR: ./uploads
+      MAX_FILE_SIZE_MB: 10
+    ports:
+      - '3001:3001'
+    volumes:
+      - uploads_prod:/app/server/uploads
+
+  # ─── Frontend Nginx Server ──────────────────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: appraisal-client-prod
+    restart: always
+    depends_on:
+      - server
+    ports:
+      - '80:80'
+
+volumes:
+  pgdata_prod:
+  uploads_prod:

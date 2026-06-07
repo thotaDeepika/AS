@@ -10,6 +10,7 @@ interface Application {
   academic_year: string;
   status: string;
   total_score: number | null;
+  reviewer_score?: number | null;
   faculty: {
     id: string;
     name: string;
@@ -119,7 +120,11 @@ export default function ReviewsPage() {
       header: 'Score',
       sortable: true,
       render: (row: Application) => (
-        <span className="cell-score">{row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}</span>
+        <span className="cell-score">
+          {row.reviewer_score !== null && row.reviewer_score !== undefined
+            ? <><span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Reviewer Score">{Number(row.reviewer_score).toFixed(1)}</span> <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">{row.total_score != null ? Number(row.total_score).toFixed(1) : ''}</span></>
+            : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—')}
+        </span>
       ),
     },
     {
@@ -157,14 +162,35 @@ export default function ReviewsPage() {
         </div>
 
         {/* Scores */}
-        {selectedApp.total_score !== null && (
-          <div className="score-overview">
-            <ScoreCard label="Teaching" score={selectedApp.section_scores?.teaching ?? 0} maxScore={60} color="#3b82f6" size="sm" />
-            <ScoreCard label="Research" score={selectedApp.section_scores?.research ?? 0} maxScore={30} color="#8b5cf6" size="sm" />
-            <ScoreCard label="Service" score={selectedApp.section_scores?.service ?? 0} maxScore={30} color="#10b981" size="sm" />
-            <ScoreCard label="Total" score={selectedApp.total_score ?? 0} maxScore={100} color="#f59e0b" />
-          </div>
-        )}
+        {(() => {
+          let teaching = 0, research = 0, service = 0;
+          selectedApp.category_entries?.forEach((e: any) => {
+            const val = Number(e.reviewer_score !== null && e.reviewer_score !== undefined ? e.reviewer_score : e.calculated_score);
+            if (e.category?.section === 'TEACHING') teaching += val;
+            else if (e.category?.section === 'RESEARCH') research += val;
+            else if (e.category?.section === 'SERVICE') service += val;
+          });
+
+          const desig = selectedApp.faculty.designation;
+          const maxT = desig === 'PROFESSOR' ? 40 : desig === 'ASSOCIATE_PROFESSOR' ? 50 : 60;
+          const maxR = desig === 'PROFESSOR' ? 30 : desig === 'ASSOCIATE_PROFESSOR' ? 20 : 10;
+          const maxS = 30;
+
+          if (teaching > maxT) teaching = maxT;
+          if (research > maxR) research = maxR;
+          if (service > maxS) service = maxS;
+          
+          const total = teaching + research + service;
+
+          return (
+            <div className="score-overview">
+              <ScoreCard label="Teaching" score={teaching} maxScore={maxT} color="#3b82f6" size="sm" />
+              <ScoreCard label="Research" score={research} maxScore={maxR} color="#8b5cf6" size="sm" />
+              <ScoreCard label="Service" score={service} maxScore={maxS} color="#10b981" size="sm" />
+              <ScoreCard label="Total" score={total} maxScore={100} color="#f59e0b" />
+            </div>
+          );
+        })()}
 
         {/* Category Entries */}
         <div className="review-entries">
@@ -183,7 +209,12 @@ export default function ReviewsPage() {
                       appId={selectedApp.id}
                       categoryId={entry.category_id}
                       initialScore={entry.reviewer_score !== null ? entry.reviewer_score : entry.calculated_score}
-                      onScoreUpdated={(data) => setSelectedApp((prev: any) => ({ ...prev, total_score: data.total_score, section_scores: data.section_scores }))}
+                      onScoreUpdated={(newVal) => setSelectedApp((prev: any) => {
+                        const newEntries = prev.category_entries.map((ce: any) => 
+                          ce.category_id === entry.category_id ? { ...ce, reviewer_score: newVal } : ce
+                        );
+                        return { ...prev, category_entries: newEntries };
+                      })}
                     />
                   ) : (
                     entry.reviewer_score !== null 
@@ -321,8 +352,8 @@ function EntryScoreInput({ appId, categoryId, initialScore, onScoreUpdated }: { 
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await reviewsApi.updateEntryScore(appId, categoryId, val === '' ? '' : Number(val));
-      onScoreUpdated(res.data.data);
+      await reviewsApi.updateEntryScore(appId, categoryId, val === '' ? '' : Number(val));
+      onScoreUpdated(val === '' ? null : Number(val));
     } catch (err) {
       console.error(err);
       // fallback to initial

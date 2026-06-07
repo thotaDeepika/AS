@@ -381,4 +381,42 @@ router.get('/scoring-categories', async (_req: Request, res: Response, next: Nex
   }
 });
 
+// ─── PUT /api/admin/scoring-categories/:id — Update category ─────────
+
+const updateCategorySchema = z.object({
+  name: z.string().optional(),
+  description: z.string().nullable().optional(),
+  is_active: z.boolean().optional(),
+  input_config: z.any().optional(),
+  scoring_rules: z.array(z.object({
+    id: z.string(),
+    max_weightage: z.number().or(z.string()),
+    formula: z.any()
+  })).optional()
+});
+
+router.put('/scoring-categories/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, description, is_active, input_config, scoring_rules } = updateCategorySchema.parse(req.body);
+
+    const category = await prisma.scoringCategory.update({
+      where: { id: req.params.id as string },
+      data: { name, description, is_active, input_config: input_config === undefined ? undefined : input_config },
+    });
+
+    if (scoring_rules) {
+      for (const rule of scoring_rules) {
+        await prisma.scoringRule.update({
+          where: { id: rule.id },
+          data: { max_weightage: rule.max_weightage, formula: rule.formula },
+        });
+      }
+    }
+
+    res.json({ success: true, message: 'Category updated successfully', data: { category } });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

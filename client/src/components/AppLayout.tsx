@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'PRINCIPAL', 'HOD', 'FACULTY', 'REVIEWER', 'ACCOUNTS'] },
   { path: '/applications', label: 'My Application', icon: '📝', roles: ['FACULTY'] },
   { path: '/history', label: 'Submission History', icon: '📜', roles: ['FACULTY'] },
-  { path: '/applications', label: 'Applications', icon: '📋', roles: ['ADMIN', 'HOD', 'PRINCIPAL', 'REVIEWER', 'ACCOUNTS'] },
+
   { path: '/users', label: 'User Management', icon: '👥', roles: ['ADMIN'] },
   { path: '/scoring', label: 'Scoring Config', icon: '⚙️', roles: ['ADMIN'] },
   { path: '/reviews', label: 'Pending Reviews', icon: '✅', roles: ['HOD', 'REVIEWER'] },
@@ -133,9 +133,11 @@ export default function AppLayout() {
         <header className="main-header">
           <div className="header-left">
             <h2 className="header-greeting">
-              Welcome, {user.name.split(' ')[0]}
+              Welcome, {['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) ? user.name : user.name.split(' ')[0]}
             </h2>
-            <span className="header-dept">{user.department?.name}</span>
+            {!['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) && user.department?.name && (
+              <span className="header-dept">{user.department.name}</span>
+            )}
           </div>
           <div className="header-right">
             <button className="theme-toggle" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>

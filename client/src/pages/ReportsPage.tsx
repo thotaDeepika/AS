@@ -252,7 +252,6 @@ export default function ReportsPage() {
                   <th>Academic Year</th>
                   <th>Status</th>
                   <th>Score</th>
-                  {isAdmin && <th>Reviewers Score</th>}
                   <th>Action</th>
                 </tr>
               </thead>
@@ -268,12 +267,11 @@ export default function ReportsPage() {
                         {statusLabels[app.status] || app.status}
                       </span>
                     </td>
-                    <td className="score-cell">{Number(app.total_score).toFixed(1)}</td>
-                    {isAdmin && (
-                      <td className="score-cell">
-                        {app.reviewer_score != null ? Number(app.reviewer_score).toFixed(1) : '—'}
-                      </td>
-                    )}
+                    <td className="cell-score">
+                      {app.reviewer_score !== null && app.reviewer_score !== undefined
+                        ? <><span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Reviewer Score">{Number(app.reviewer_score).toFixed(1)}</span> <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">{app.total_score != null ? Number(app.total_score).toFixed(1) : ''}</span></>
+                        : (app.total_score != null ? Number(app.total_score).toFixed(1) : '—')}
+                    </td>
                     <td>
                       <button
                         className="btn-download-pdf"

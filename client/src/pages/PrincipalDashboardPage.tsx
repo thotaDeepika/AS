@@ -134,7 +134,11 @@ export default function PrincipalDashboardPage() {
       header: 'Score',
       sortable: true,
       render: (row: Application) => (
-        <span className="cell-score">{row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}</span>
+        <span className="cell-score">
+          {row.reviewer_score !== null && row.reviewer_score !== undefined
+            ? <><span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Reviewer Score">{Number(row.reviewer_score).toFixed(1)}</span> <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">{row.total_score != null ? Number(row.total_score).toFixed(1) : ''}</span></>
+            : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—')}
+        </span>
       ),
     },
     {

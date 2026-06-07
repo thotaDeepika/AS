@@ -20,7 +20,7 @@ export default function DashboardPage() {
     <div className="dashboard-content">
       <div className="dashboard-welcome-card">
         <div className="welcome-text">
-          <h1>Welcome back, {user.name.split(' ')[0]}! 👋</h1>
+          <h1>Welcome back, {['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) ? user.name : user.name.split(' ')[0]}! 👋</h1>
           <p>Here's what's happening with your appraisal system today.</p>
         </div>
       </div>
@@ -54,8 +54,7 @@ export default function DashboardPage() {
         {user.role === 'FACULTY' && (
           <>
             <DashCard title="My Application" desc="Create or continue your appraisal" icon="📝" color="#10b981" onClick={() => navigate('/applications')} />
-            <DashCard title="Upload Documents" desc="Attach proof documents" icon="📎" color="#3b82f6" onClick={() => navigate('/applications')} />
-            <DashCard title="View Score" desc="Check your calculated score" icon="📊" color="#8b5cf6" onClick={() => navigate('/applications')} />
+            <DashCard title="Submission History" desc="View your past applications" icon="📜" color="#3b82f6" onClick={() => navigate('/history')} />
           </>
         )}
         {user.role === 'HOD' && (
@@ -74,7 +73,7 @@ export default function DashboardPage() {
           <DashCard title="Assigned Reviews" desc="Review assigned applications" icon="📋" color="#f59e0b" onClick={() => navigate('/reviews')} />
         )}
         {user.role === 'ACCOUNTS' && (
-          <DashCard title="Approved Applications" desc="Process approved increments" icon="💰" color="#6366f1" onClick={() => navigate('/applications')} />
+          <DashCard title="Approved Applications" desc="Process approved increments" icon="💰" color="#6366f1" onClick={() => navigate('/accounts')} />
         )}
       </div>
 
@@ -85,7 +84,7 @@ export default function DashboardPage() {
           <div><span className="info-label">Email</span><span className="info-value">{user.email}</span></div>
           <div><span className="info-label">Role</span><span className="info-value">{user.role.replace(/_/g, ' ')}</span></div>
           {user.designation && <div><span className="info-label">Designation</span><span className="info-value">{user.designation.replace(/_/g, ' ')}</span></div>}
-          <div><span className="info-label">Department</span><span className="info-value">{user.department?.name}</span></div>
+          {!['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) && <div><span className="info-label">Department</span><span className="info-value">{user.department?.name}</span></div>}
         </div>
       </div>
     </div>

@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 
 // Load env from project root
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -24,10 +27,21 @@ initAppraisalReminderJob();
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Allow fetching uploaded images
+}));
+app.use(compression());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
 }));
+
+// Rate limiting for auth routes to prevent brute force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  message: 'Too many login attempts from this IP, please try again after 15 minutes'
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -45,7 +59,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/applications', applicationRoutes);

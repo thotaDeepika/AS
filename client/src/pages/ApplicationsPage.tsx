@@ -98,17 +98,21 @@ export default function ApplicationsPage() {
         if (apps.length > 0) {
           setHistoryApps(apps);
           const urlId = searchParams.get('id');
-          // Default to the requested ID, or current academic year's app if it exists, else the latest
-          const targetApp = (urlId ? apps.find((a: any) => a.id === urlId) : null)
-                         || apps.find((a: any) => a.academic_year === academicYear) 
-                         || apps[0];
-          const detail = await applicationsApi.getById(targetApp.id);
-          const app = detail.data.data.application;
-          // Convert Prisma Decimal fields to numbers
-          if (app.total_score !== null) app.total_score = Number(app.total_score);
-          if (app.final_score !== null) app.final_score = Number(app.final_score);
-          if (app.bonus_score !== null) app.bonus_score = Number(app.bonus_score);
-          setApplication(app);
+          // Default to the requested ID, or active DRAFT/REVERTED application
+          let targetApp = urlId ? apps.find((a: any) => a.id === urlId) : null;
+          if (!targetApp && !urlId) {
+            targetApp = apps.find((a: any) => a.status === 'DRAFT' || a.status === 'REVERTED');
+          }
+
+          if (targetApp) {
+            const detail = await applicationsApi.getById(targetApp.id);
+            const app = detail.data.data.application;
+            // Convert Prisma Decimal fields to numbers
+            if (app.total_score !== null) app.total_score = Number(app.total_score);
+            if (app.final_score !== null) app.final_score = Number(app.final_score);
+            if (app.bonus_score !== null) app.bonus_score = Number(app.bonus_score);
+            setApplication(app);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -126,6 +130,7 @@ export default function ApplicationsPage() {
       const detail = await applicationsApi.getById(res.data.data.application.id);
       setApplication(detail.data.data.application);
       showToast('success', 'Application created successfully');
+      setHistoryApps(prev => [...prev, detail.data.data.application]);
     } catch (err: any) {
       showToast('error', err.response?.data?.error || 'Failed to create application');
     } finally {
@@ -235,13 +240,8 @@ export default function ApplicationsPage() {
 
   if (loading) return <div className="page-loader"><div className="loader-spinner" /><p>Loading...</p></div>;
 
-  // Faculty role: if no application, show create card
-  const hasCurrentYear = historyApps.some(a => a.academic_year === academicYear);
-  const showCreatePrompt = user?.role === 'FACULTY' && !hasCurrentYear;
-
-  if (user?.role === 'FACULTY' && !application && !showCreatePrompt) {
-    return <div className="page-loader"><p>No applications found.</p></div>;
-  }
+  // Faculty role: if no application is open, show create card
+  const showCreatePrompt = user?.role === 'FACULTY' && !application;
 
   const principalReview = application?.reviews?.find((r: any) => r.role_at_review === 'PRINCIPAL');
   const isRejected = principalReview?.decision === 'REJECTED';
@@ -272,10 +272,15 @@ export default function ApplicationsPage() {
       {showCreatePrompt && (
         <div className="app-empty-state" style={{ marginBottom: '2rem' }}>
           <div className="empty-icon">📝</div>
-          <h2>Current Year Application Missing</h2>
+          <h2>Start New Appraisal</h2>
           <p>Start your appraisal by creating a new application for the current academic year ({academicYear}).</p>
-          <button className="btn-primary" onClick={handleCreate} disabled={creating}>
-            {creating ? 'Creating...' : `Create Application (${academicYear})`}
+          <div style={{ margin: '1.5rem 0' }}>
+            <span className="badge-dept" style={{ fontSize: '1.1rem', padding: '0.5rem 1rem' }}>
+              Academic Year: {academicYear}
+            </span>
+          </div>
+          <button className="btn-primary" onClick={handleCreate} disabled={creating || historyApps.some(a => a.academic_year === academicYear)}>
+            {creating ? 'Creating...' : `Create Application`}
           </button>
         </div>
       )}

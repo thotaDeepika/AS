@@ -141,6 +141,9 @@ export const adminApi = {
 
   scoringCategories: () => api.get('/admin/scoring-categories'),
 
+  updateScoringCategory: (id: string, data: any) => 
+    api.put(`/admin/scoring-categories/${id}`, data),
+
   auditLogs: (params?: Record<string, string>) =>
     api.get('/admin/audit-logs', { params }),
 

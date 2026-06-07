@@ -1,18 +1,21 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy client package files
-COPY client/package.json ./
-
 # Install dependencies
-RUN npm install
+COPY package.json package-lock.json ./
+COPY client/package.json ./client/
+RUN npm install --workspace=client --ignore-scripts
 
-# Copy client source
-COPY client/ ./
+# Build client
+COPY client/ ./client/
+WORKDIR /app/client
+RUN npm run build
 
-# Expose Vite dev server port
-EXPOSE 5173
+# Stage 2: Nginx
+FROM nginx:alpine
+COPY --from=build /app/client/dist /usr/share/nginx/html
+COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Run Vite dev server (accessible from outside container)
-CMD ["npx", "vite", "--host", "0.0.0.0"]
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

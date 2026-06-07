@@ -112,8 +112,8 @@ router.post('/', authorize(Role.FACULTY), async (req: Request, res: Response, ne
     let diffTime = today.getTime() - anniversaryThisYear.getTime();
     let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays < -50 || diffDays > 10) {
-      throw new ValidationError(`Application creation is only allowed 50 days before and 10 days after your joining date anniversary (${anniversaryThisYear.toLocaleDateString()}). Currently, you are ${diffDays < 0 ? Math.abs(diffDays) + ' days early' : diffDays + ' days late'}.`);
+    if (diffDays < -90 || diffDays > -30) {
+      throw new ValidationError(`Application creation is only allowed between 90 and 30 days before your joining date anniversary (${anniversaryThisYear.toLocaleDateString()}). Currently, you are ${diffDays < 0 ? Math.abs(diffDays) + ' days before' : diffDays + ' days after'}.`);
     }
 
     const application = await prisma.application.create({
@@ -366,13 +366,32 @@ router.post('/:id/submit', authorize(Role.FACULTY), async (req: Request, res: Re
   try {
     const application = await prisma.application.findUnique({
       where: { id: req.params.id as string },
-      include: { faculty: { select: { designation: true, name: true, department_id: true } } },
+      include: { faculty: { select: { designation: true, name: true, department_id: true, joining_date: true } } },
     });
 
     if (!application) throw new NotFoundError('Application');
     if (application.faculty_id !== req.user!.id) throw new ForbiddenError();
     if (application.status !== ApplicationStatus.DRAFT && application.status !== ApplicationStatus.REVERTED) throw new ValidationError('Application already submitted');
     if (!(application as any).faculty.designation) throw new ValidationError('Faculty designation is required for score calculation');
+
+    // Eligibility window check for submission
+    if (!(application as any).faculty.joining_date) {
+      throw new ValidationError('Your joining date is missing. Please contact Admin.');
+    }
+
+    const joiningDate = new Date((application as any).faculty.joining_date);
+    const today = new Date();
+    
+    let currentYear = today.getFullYear();
+    let anniversaryThisYear = new Date(currentYear, joiningDate.getMonth(), joiningDate.getDate());
+    
+    // To handle cases where we are checking near the end of the year for an early next year anniversary
+    let diffTime = today.getTime() - anniversaryThisYear.getTime();
+    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < -90 || diffDays > -30) {
+      throw new ValidationError(`Application submission is only allowed between 90 and 30 days before your joining date anniversary (${anniversaryThisYear.toLocaleDateString()}). Currently, you are ${diffDays < 0 ? Math.abs(diffDays) + ' days before' : diffDays + ' days after'}.`);
+    }
 
     if ((application as any).faculty.department_id) {
       const hod = await prisma.user.findFirst({
