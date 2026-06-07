@@ -2,16 +2,15 @@
 
 Based on the Ramaiah Institute of Technology "Guidelines for Annual Increment for Teaching Staff".
 
-## Scoring Sections
+## Scoring Sections & Multiplier Bases
 
-The appraisal form has **3 main sections** with different maximum weightages per designation:
+The appraisal system operates on an **uncapped, additive scoring model**. The section values below serve as **base multipliers** (e.g. `Category Score = Base Multiplier × Achievement %`) rather than rigid caps. Because individual achievement categories are fully additive (especially in Research and Service), there is no upper ceiling on the section scores or the grand total score.
 
-| Section | Asst. Prof Max | Assoc. Prof Max | Professor Max |
-|---------|---------------|-----------------|---------------|
+| Section | Asst. Prof Base | Assoc. Prof Base | Professor Base |
+|---------|-----------------|------------------|----------------|
 | Teaching | 60 | 50 | 40 |
 | Research | 10 | 20 | 30 |
 | Service & Professional Development | 30 | 30 | 30 |
-| **Total** | **100** | **100** | **100** |
 
 ---
 

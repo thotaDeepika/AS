@@ -53,12 +53,17 @@ The system is divided into 6 distinct organizational roles, each featuring perso
 ### 📊 Dynamic Scoring & Analytics Engine
 A sophisticated backend calculation engine evaluates faculty inputs against institutional rubrics:
 - **Comprehensive Metrics:** 23 distinct categories across 3 sections (Teaching, Research, Service). These range from FCI (Faculty Course Index) scores to PhD guidance and consulting projects.
-- **Designation-Aware Logic:** Automatically scales weightages and max-caps based on whether the faculty is an Assistant Professor (e.g., higher teaching weight), Associate Professor, or Professor (e.g., higher research weight).
-- **Real-time Evaluation & Admin Control:** Scores are instantly calculated and capped according to the dynamic `ScoringRules` tables in the database, strictly following the institutional rubrics defined in `FINAL_SCORING.md`. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
+- **Designation-Aware Multipliers:** Automatically scales base multipliers (Teaching, Research, Service) according to the faculty member's designation (Assistant Professor, Associate Professor, or Professor) as specified in the official guidelines.
+- **Uncapped, Additive Model:** Evaluates individual items and sections as pure additive scores (e.g. `Score = Multiplier × Percentage`), with no artificial ceilings, and has removed visual denominators and progress bars from the UI.
+- **Real-time Evaluation & Admin Control:** Scores are instantly calculated according to the dynamic `ScoringRules` tables in the database. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
 
 ### 📄 Advanced Reporting & Document Generation
 - **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures from the HOD, Reviewer, and Principal.
-- **Consolidated Excel Exports:** Generates multi-sheet Excel workbooks detailing institutional and departmental summaries, empowering the Principal and Accounts teams with actionable analytics.
+- **Consolidated Excel Exports:** Generates multi-sheet Excel workbooks detailing institutional and departmental summaries with active resolved scores (including reviewer overrides), empowering the Principal and Accounts teams.
+- **Background Mail Processing:** Email notifications and PDF report dispatches run asynchronously in background tasks, ensuring instant HTTP responses and zero frontend submit-button freeze.
+
+### 🎨 Premium Visual Elements
+- **Custom Signature Selector:** Replaced default browser-native file inputs with a styled action button trigger, providing a clear visual status state (with green verification checkmarks) for uploaded signature assets.
 
 ### 🔒 Security & Production Resilience
 - **Cryptographic Authentication:** JWT-based stateless authentication with `bcrypt` password hashing.
