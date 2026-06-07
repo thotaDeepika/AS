@@ -3,8 +3,8 @@ import prisma from '../lib/prisma.js';
 import { sendEmail } from '../lib/email.js';
 
 export const initAppraisalReminderJob = () => {
-  // Run every day at 8:00 AM
-  cron.schedule('0 8 * * *', async () => {
+  // Run every day at 8:00 AM and 10:00 PM
+  cron.schedule('0 8,22 * * *', async () => {
     console.log('Running appraisal reminder job...');
     try {
       const users = await prisma.user.findMany({
