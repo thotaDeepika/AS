@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
+import VisualJsonEditor from '../components/VisualJsonEditor';
 
 interface Category {
   id: string;
@@ -61,10 +62,10 @@ export default function ScoringPage() {
       name: cat.name,
       description: cat.description || '',
       is_active: cat.is_active,
-      input_config_str: cat.input_config ? JSON.stringify(cat.input_config, null, 2) : '',
+      input_config: cat.input_config ? JSON.parse(JSON.stringify(cat.input_config)) : {},
       scoring_rules: cat.scoring_rules ? cat.scoring_rules.map(r => ({ 
         ...r,
-        formula_str: r.formula ? JSON.stringify(r.formula, null, 2) : ''
+        formula: r.formula ? JSON.parse(JSON.stringify(r.formula)) : {}
       })) : []
     });
   };
@@ -78,42 +79,18 @@ export default function ScoringPage() {
   const handleSave = async (e: React.MouseEvent, catId: string) => {
     e.stopPropagation();
     
-    let parsedInputConfig = null;
-    try {
-      if (editForm.input_config_str?.trim()) {
-        parsedInputConfig = JSON.parse(editForm.input_config_str);
-      }
-    } catch (err) {
-      alert('Invalid JSON in Input Configuration. Please fix it and try again.');
-      return;
-    }
-
-    const payloadRules = [];
-    for (const r of editForm.scoring_rules) {
-      let parsedFormula = null;
-      try {
-        if (r.formula_str?.trim()) {
-          parsedFormula = JSON.parse(r.formula_str);
-        }
-      } catch (err) {
-        alert(`Invalid JSON in Formula for ${r.designation}. Please fix it and try again.`);
-        return;
-      }
-      payloadRules.push({
-        id: r.id,
-        max_weightage: Number(r.max_weightage),
-        formula: parsedFormula
-      });
-    }
-
     setSaving(true);
     try {
       const payload = {
         name: editForm.name,
         description: editForm.description,
         is_active: editForm.is_active,
-        input_config: parsedInputConfig,
-        scoring_rules: payloadRules
+        input_config: editForm.input_config,
+        scoring_rules: editForm.scoring_rules.map((r: any) => ({
+          id: r.id,
+          max_weightage: Number(r.max_weightage),
+          formula: r.formula
+        }))
       };
       await adminApi.updateScoringCategory(catId, payload);
       await loadCategories();
@@ -250,20 +227,16 @@ export default function ScoringPage() {
                 <div className="detail-section">
                   <h5>Input Configuration</h5>
                   {editingCatId === cat.id ? (
-                    <textarea 
-                      value={editForm.input_config_str} 
-                      onChange={e => setEditForm({ ...editForm, input_config_str: e.target.value })}
-                      className="form-input"
-                      rows={5}
-                      style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.9rem', padding: '0.5rem' }}
-                      placeholder="{}"
-                    />
+                    <div style={{ background: '#fff', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                      <VisualJsonEditor 
+                        data={editForm.input_config} 
+                        onChange={(newData) => setEditForm({ ...editForm, input_config: newData })} 
+                      />
+                    </div>
+                  ) : cat.input_config ? (
+                    <pre className="config-json">{JSON.stringify(cat.input_config, null, 2)}</pre>
                   ) : (
-                    cat.input_config ? (
-                      <pre className="config-json">{JSON.stringify(cat.input_config, null, 2)}</pre>
-                    ) : (
-                      <p className="no-rules">No input configuration</p>
-                    )
+                    <p className="no-rules">No input configuration</p>
                   )}
                 </div>
 
@@ -294,18 +267,14 @@ export default function ScoringPage() {
                                 style={{ width: '80px', padding: '0.3rem' }}
                               />
                             </span>
-                            <span style={{ flex: 1 }}>
-                              <textarea 
-                                value={rule.formula_str} 
-                                onChange={e => {
+                            <span style={{ flex: 1, background: '#fff', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                              <VisualJsonEditor 
+                                data={rule.formula} 
+                                onChange={(newFormula) => {
                                   const newRules = [...editForm.scoring_rules];
-                                  newRules[idx].formula_str = e.target.value;
+                                  newRules[idx].formula = newFormula;
                                   setEditForm({ ...editForm, scoring_rules: newRules });
-                                }}
-                                className="form-input" 
-                                rows={3}
-                                style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.85rem', padding: '0.4rem', opacity: 0.9 }}
-                                placeholder="{}"
+                                }} 
                               />
                             </span>
                           </div>
