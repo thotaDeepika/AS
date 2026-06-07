@@ -5,6 +5,7 @@ import { Role, Designation, AuditAction } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ConflictError } from '../lib/errors.js';
+import { sendEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -145,6 +146,23 @@ router.post('/', authorize(Role.ADMIN), async (req: Request, res: Response, next
         department: { select: { id: true, name: true, code: true } },
       },
     });
+
+    // Send credentials via email
+    const rawPassword = data.password || 'Admin@123';
+    const subject = 'Welcome to RIT Appraisal System - Your Credentials';
+    const body = `
+      <h2>Welcome, ${user.name}</h2>
+      <p>An administrator has created an account for you in the RIT Faculty Appraisal System.</p>
+      <p>Your login credentials are as follows:</p>
+      <ul>
+        <li><strong>Email:</strong> ${user.email}</li>
+        <li><strong>Password:</strong> ${rawPassword}</li>
+      </ul>
+      <p>Please log in and change your password as soon as possible.</p>
+      <br/>
+      <p>Best regards,<br/>Admin Team</p>
+    `;
+    sendEmail(user.email, subject, body).catch(e => console.error("Failed to send welcome email:", e));
 
     // Audit
     await prisma.auditLog.create({
