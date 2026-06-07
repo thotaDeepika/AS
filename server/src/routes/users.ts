@@ -158,7 +158,6 @@ router.post('/', authorize(Role.ADMIN), async (req: Request, res: Response, next
         <li><strong>Email:</strong> ${user.email}</li>
         <li><strong>Password:</strong> ${rawPassword}</li>
       </ul>
-      <p>Please log in and change your password as soon as possible.</p>
       <br/>
       <p>Best regards,<br/>Admin Team</p>
     `;
