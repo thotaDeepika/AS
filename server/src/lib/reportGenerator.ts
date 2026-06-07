@@ -163,13 +163,15 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   const summaryRows: string[][] = [];
 
   let currentSection = '';
+  let dynamicTotal = 0;
   for (const entry of app.category_entries) {
     if (entry.category.section !== currentSection) {
       currentSection = entry.category.section;
       summaryRows.push(['', sectionLabels[currentSection] || currentSection, '']);
     }
-    const score = entry.reviewer_score !== null ? Number(entry.reviewer_score).toFixed(1) : Number(entry.calculated_score).toFixed(1);
-    summaryRows.push([String(entry.category.sl_no), entry.category.name, score]);
+    const scoreVal = entry.reviewer_score !== null ? Number(entry.reviewer_score) : Number(entry.calculated_score);
+    dynamicTotal += scoreVal;
+    summaryRows.push([String(entry.category.sl_no), entry.category.name, scoreVal.toFixed(1)]);
   }
 
   let yPos = drawTable(doc.y, summaryColWidths, summaryHeaders, summaryRows, true);
@@ -179,7 +181,7 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   
   doc.rect(50, yPos, 495, 20).stroke(lineColor);
   doc.font('Helvetica-Bold').fontSize(10).text('Total', 55, yPos + 5, { width: 395, align: 'right' });
-  doc.text(Number(app.total_score).toFixed(1), 455, yPos + 5);
+  doc.text(dynamicTotal.toFixed(1), 455, yPos + 5);
   
   yPos += 60;
   if (yPos > doc.page.height - 100) { doc.addPage(); yPos = 50; }
@@ -344,8 +346,11 @@ export async function generateConsolidatedPDF(
           department: { select: { name: true, code: true } },
         },
       },
+      category_entries: {
+        include: { category: { select: { section: true } } },
+      },
     },
-    orderBy: [{ faculty: { department: { name: 'asc' } } }, { total_score: 'desc' }],
+    orderBy: [{ faculty: { department: { name: 'asc' } } }, { final_score: 'desc' }],
   });
 
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40, bufferPages: true });
@@ -376,7 +381,7 @@ export async function generateConsolidatedPDF(
   // ── Summary Stats ──
   const departments = [...new Set(applications.map(a => a.faculty.department?.name || 'N/A'))];
   const avgScore = applications.length > 0
-    ? (applications.reduce((s, a) => s + Number(a.total_score), 0) / applications.length).toFixed(1)
+    ? (applications.reduce((s, a) => s + Number(a.final_score), 0) / applications.length).toFixed(1)
     : '0';
 
   doc.fill(darkText).fontSize(12).font('Helvetica-Bold').text('Summary', 40, y);
@@ -408,6 +413,20 @@ export async function generateConsolidatedPDF(
       doc.rect(40, y - 2, doc.page.width - 80, 16).fill('#fafafa');
     }
 
+    let teachingScore = 0;
+    let researchScore = 0;
+    let serviceScore = 0;
+
+    app.category_entries.forEach(entry => {
+      const scoreVal = entry.reviewer_score !== null ? Number(entry.reviewer_score) : Number(entry.calculated_score);
+      const section = entry.category.section;
+      if (section === 'TEACHING') teachingScore += scoreVal;
+      else if (section === 'RESEARCH') researchScore += scoreVal;
+      else if (section === 'SERVICE') serviceScore += scoreVal;
+    });
+
+    const finalTotal = teachingScore + researchScore + serviceScore;
+
     doc.fill(darkText).fontSize(8).font('Helvetica');
     let rx = 45;
     const row = [
@@ -415,8 +434,10 @@ export async function generateConsolidatedPDF(
       app.faculty.name,
       app.faculty.department?.code || 'N/A',
       designationLabels[app.faculty.designation || ''] || 'N/A',
-      '—', '—', '—',
-      Number(app.total_score).toFixed(1),
+      teachingScore.toFixed(1),
+      researchScore.toFixed(1),
+      serviceScore.toFixed(1),
+      finalTotal.toFixed(1),
     ];
     row.forEach((val, i) => {
       doc.text(val, rx, y, { width: colW[i] });
@@ -466,7 +487,7 @@ export async function generateExcelReport(
         orderBy: { category: { sl_no: 'asc' } },
       },
     },
-    orderBy: [{ faculty: { department: { name: 'asc' } } }, { total_score: 'desc' }],
+    orderBy: [{ faculty: { department: { name: 'asc' } } }, { final_score: 'desc' }],
   });
 
   const wb = new ExcelJS.Workbook();
@@ -500,7 +521,7 @@ export async function generateExcelReport(
   applications.forEach(app => {
     const dept = app.faculty.department?.name || 'N/A';
     if (!deptMap.has(dept)) deptMap.set(dept, []);
-    deptMap.get(dept)!.push(Number(app.total_score));
+    deptMap.get(dept)!.push(Number(app.final_score));
   });
 
   deptMap.forEach((scores, dept) => {
@@ -515,7 +536,7 @@ export async function generateExcelReport(
   });
 
   // Total row
-  const allScores = applications.map(a => Number(a.total_score));
+  const allScores = applications.map(a => Number(a.final_score));
   if (allScores.length > 0) {
     const totalRow = summarySheet.addRow({
       dept: 'TOTAL',
@@ -556,7 +577,7 @@ export async function generateExcelReport(
       designation: designationLabels[app.faculty.designation || ''] || 'N/A',
       year: app.academic_year,
       status: statusLabels[app.status] || app.status,
-      score: Number(app.total_score),
+      score: Number(app.final_score),
       submitted: formatDate(app.submitted_at),
     });
   });
@@ -587,10 +608,10 @@ export async function generateExcelReport(
       sl: i + 1,
       name: app.faculty.name,
       dept: app.faculty.department?.code || 'N/A',
-      total: Number(app.total_score),
+      total: Number(app.final_score),
     };
     app.category_entries.forEach(entry => {
-      row[`cat_${entry.category.sl_no}`] = Number(entry.calculated_score);
+      row[`cat_${entry.category.sl_no}`] = entry.reviewer_score !== null ? Number(entry.reviewer_score) : Number(entry.calculated_score);
     });
     catSheet.addRow(row);
   });

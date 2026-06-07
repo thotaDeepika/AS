@@ -40,12 +40,32 @@ interface Application {
 const currentYear = new Date().getFullYear();
 const academicYear = `${currentYear}-${currentYear + 1}`;
 
-// Section maxes by designation (from FINAL_SCORING.md)
+// Section base multipliers by designation (from FINAL_SCORING.md)
+// These are NOT caps — they are the values that percentages are multiplied against.
 const SECTION_MAXES: Record<string, Record<string, number>> = {
   ASSISTANT_PROFESSOR: { TEACHING: 60, RESEARCH: 10, SERVICE: 30 },
   ASSOCIATE_PROFESSOR: { TEACHING: 50, RESEARCH: 20, SERVICE: 30 },
   PROFESSOR:           { TEACHING: 40, RESEARCH: 30, SERVICE: 30 },
 };
+
+function calculateSectionScores(entries: CategoryEntry[], _maxes: Record<string, number>) {
+  let teaching = 0;
+  let research = 0;
+  let service = 0;
+  for (const entry of entries) {
+    const score = Number(entry.calculated_score || 0);
+    if (entry.category?.section === 'TEACHING') teaching += score;
+    else if (entry.category?.section === 'RESEARCH') research += score;
+    else if (entry.category?.section === 'SERVICE') service += score;
+  }
+  // No caps — section base values are multipliers, not ceilings
+  return {
+    teaching,
+    research,
+    service,
+    total: teaching + research + service,
+  };
+}
 
 export default function ApplicationsPage() {
   const { user } = useAuth();
@@ -64,6 +84,7 @@ export default function ApplicationsPage() {
 
   const designation = user?.designation || 'ASSISTANT_PROFESSOR';
   const maxes = SECTION_MAXES[designation] || SECTION_MAXES.ASSISTANT_PROFESSOR;
+  const currentTotals = application ? calculateSectionScores(application.category_entries, maxes) : null;
 
   // Get form values from application entries
   const getEntryValue = useCallback((categoryId: string, field: string): any => {
@@ -332,12 +353,12 @@ export default function ApplicationsPage() {
       </div>
 
       {/* Score Overview — designation-aware max values */}
-      {(scoreTotals || application.total_score !== null) && (
+      {application && (
         <div className="score-overview">
-          <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? 0} maxScore={maxes.TEACHING} color="#3b82f6" size="sm" />
-          <ScoreCard label="Research" score={scoreTotals?.research ?? 0} maxScore={maxes.RESEARCH} color="#8b5cf6" size="sm" />
-          <ScoreCard label="Service" score={scoreTotals?.service ?? 0} maxScore={maxes.SERVICE} color="#10b981" size="sm" />
-          <ScoreCard label="Total Score" score={scoreTotals?.total ?? application.total_score ?? 0} maxScore={100} color="#f59e0b" />
+          <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? currentTotals?.teaching ?? 0} color="#3b82f6" size="sm" />
+          <ScoreCard label="Research" score={scoreTotals?.research ?? currentTotals?.research ?? 0} color="#8b5cf6" size="sm" />
+          <ScoreCard label="Service" score={scoreTotals?.service ?? currentTotals?.service ?? 0} color="#10b981" size="sm" />
+          <ScoreCard label="Total Score" score={scoreTotals?.total ?? application.total_score ?? currentTotals?.total ?? 0} color="#f59e0b" />
         </div>
       )}
 
@@ -569,20 +590,31 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Category 19: Institutional/Departmental Services (role select)
+    // Category 19: Institutional/Departmental Services (role select + count)
     if (sl === 19) {
       return (
-        <div className="category-field">
-          <label>Role</label>
-          <select
-            value={localValues.role ?? ''}
-            onChange={e => updateField('role', e.target.value)}
-            disabled={!isDraft}
-          >
-            <option value="">Select role</option>
-            <option value="coordinator">Coordinator</option>
-            <option value="member">Member / Others</option>
-          </select>
+        <div className="category-fields-row">
+          <div className="category-field">
+            <label>Role</label>
+            <select
+              value={localValues.role ?? ''}
+              onChange={e => updateField('role', e.target.value)}
+              disabled={!isDraft}
+            >
+              <option value="">Select role</option>
+              <option value="coordinator">Coordinator</option>
+              <option value="member">Member / Others</option>
+            </select>
+          </div>
+          <div className="category-field">
+            <label>Count / Number of Activities</label>
+            <input
+              type="number" min="0"
+              value={localValues.count ?? ''}
+              onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
+              disabled={!isDraft} placeholder="0"
+            />
+          </div>
         </div>
       );
     }

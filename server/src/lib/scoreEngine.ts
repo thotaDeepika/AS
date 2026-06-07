@@ -23,9 +23,10 @@ interface SectionTotals {
  * All 23 scoring categories from FINAL_SCORING.md are handled here.
  *
  * Scoring Model:
- * - Each category score is calculated as a percentage of the SECTION max.
- * - Section maxes: Teaching (AP=60, AssoP=50, Prof=40), Research (AP=10, AssoP=20, Prof=30), Service (all=30)
- * - Research & Service scores are additive across categories, capped at the section max.
+ * - Each category score is calculated as a percentage of the SECTION base multiplier.
+ * - Section base multipliers: Teaching (AP=60, AssoP=50, Prof=40), Research (AP=10, AssoP=20, Prof=30), Service (all=30)
+ * - These are NOT caps — they are the base values that percentages are multiplied against.
+ * - Research & Service scores are additive across all their categories with no cap.
  */
 export async function calculateCategoryScore(
   categorySlNo: number,
@@ -57,10 +58,10 @@ export async function calculateCategoryScore(
     // ══════════════════════════════════════════════════════════════════════════
 
     // Category 2: Non-paid Refereed Journal Papers (SJR/Scopus/WoS)
-    // 1 paper = 100% of research weightage (Bonus: Doubled)
+    // 1 paper = 100% of research weightage
     case 2: {
       const papers = Number(rawValue.count || 0);
-      score = (papers >= 1 ? sectionMax : 0) * 2;
+      score = papers >= 1 ? sectionMax : 0;
       break;
     }
 
@@ -100,10 +101,10 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 7: Patents Granted — 1 patent = 50% (Bonus: Doubled)
+    // Category 7: Patents Granted — 1 patent = 50%
     case 7: {
       const count = Number(rawValue.count || 0);
-      score = (count * 50 / 100) * sectionMax * 2;
+      score = (count * 50 / 100) * sectionMax;
       break;
     }
 
@@ -121,14 +122,14 @@ export async function calculateCategoryScore(
       break;
     }
 
-    // Category 10: Research Guidance PhD — 1 batch = 7% (Bonus: Doubled)
+    // Category 10: Research Guidance PhD — 1 batch = 7%
     case 10: {
       const batches = Number(rawValue.count || 0);
-      score = (batches * 7 / 100) * sectionMax * 2;
+      score = (batches * 7 / 100) * sectionMax;
       break;
     }
 
-    // Category 11: Funded Projects (slab-based) (Bonus: Doubled)
+    // Category 11: Funded Projects (slab-based)
     case 11: {
       const amount = Number(rawValue.amount_lakhs || 0);
       let pct = 0;
@@ -136,7 +137,7 @@ export async function calculateCategoryScore(
       else if (amount >= 5) pct = 50;
       else if (amount >= 1) pct = 30;
       else if (amount > 0) pct = 20;
-      score = (pct / 100) * sectionMax * 2;
+      score = (pct / 100) * sectionMax;
       break;
     }
 
@@ -206,8 +207,9 @@ export async function calculateCategoryScore(
     // Coordinator = 20%, Others = 5%
     case 19: {
       const role = String(rawValue.role || '');
-      if (role === 'coordinator') score = (20 / 100) * sectionMax;
-      else if (role === 'member') score = (5 / 100) * sectionMax;
+      const count = rawValue.count !== undefined && rawValue.count !== null ? Number(rawValue.count) : 1;
+      if (role === 'coordinator') score = count * (20 / 100) * sectionMax;
+      else if (role === 'member') score = count * (5 / 100) * sectionMax;
       break;
     }
 
@@ -242,8 +244,8 @@ export async function calculateCategoryScore(
       score = 0;
   }
 
-  // Cap at section max (max_weightage = section max in our model)
-  return Math.min(Math.max(score, 0), sectionMax);
+  // Ensure score is non-negative (no upper cap — sectionMax is a multiplier, not a ceiling)
+  return Math.max(score, 0);
 }
 
 /**
@@ -268,14 +270,15 @@ export async function calculateApplicationScores(
     },
   });
 
-  // Section maximums by designation (from FINAL_SCORING.md)
-  const sectionMaxes: Record<string, Record<string, number>> = {
+  // Section base multipliers by designation (from FINAL_SCORING.md)
+  // These are NOT caps — they are the values that percentages are multiplied against.
+  const sectionMultipliers: Record<string, Record<string, number>> = {
     ASSISTANT_PROFESSOR: { TEACHING: 60, RESEARCH: 10, SERVICE: 30 },
     ASSOCIATE_PROFESSOR: { TEACHING: 50, RESEARCH: 20, SERVICE: 30 },
     PROFESSOR:           { TEACHING: 40, RESEARCH: 30, SERVICE: 30 },
   };
 
-  const maxes = sectionMaxes[designation] || sectionMaxes.ASSISTANT_PROFESSOR;
+  const maxes = sectionMultipliers[designation] || sectionMultipliers.ASSISTANT_PROFESSOR;
   const sectionScores = { teaching: 0, research: 0, service: 0 };
   const results: ScoreResult[] = [];
 
@@ -302,15 +305,9 @@ export async function calculateApplicationScores(
     else sectionScores.service += score;
   }
 
-  // Cap sections at their max
-  sectionScores.teaching = Math.min(sectionScores.teaching, maxes.TEACHING);
-  sectionScores.research = Math.min(sectionScores.research, maxes.RESEARCH);
-  sectionScores.service = Math.min(sectionScores.service, maxes.SERVICE);
-
-  const total = Math.min(
-    sectionScores.teaching + sectionScores.research + sectionScores.service,
-    100
-  );
+  // No section caps — section base values are multipliers, not ceilings.
+  // Scores are purely additive across all categories within each section.
+  const total = sectionScores.teaching + sectionScores.research + sectionScores.service;
 
   return {
     entries: results,

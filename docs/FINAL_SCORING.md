@@ -123,8 +123,8 @@ The appraisal form has **3 main sections** with different maximum weightages per
  1 attachment option
 
 ### 19. Institutional/Departmental Services (NBA/NIRF)
-- Coordinator: 20%
-- Others: 5%
+- Coordinator: 20% per service (multiplied by count)
+- Others: 5% per service (multiplied by count)
  1 attachment option
 
 ### 20. Other Services to Institution or Society Contribution
@@ -151,11 +151,12 @@ The appraisal form has **3 main sections** with different maximum weightages per
 2. Frontend sends **raw values** (number of papers, FCI %, funding amounts)
 3. Backend looks up `ScoringRule` for the faculty's `designation` + `category`
 4. Backend applies the formula/slab logic to compute each category score
-5. Category scores are **capped** at their `max_weightage`
-6. Research category scores are **additive** (sum of all subcategories, capped at section max)
-7. `total_score = Teaching + Research + Service` (capped at 100)
-8. `final_score = total_score + bonus` (bonus is optional, entered at principal/admin level)
-9. Scoring rules are **admin-configurable** — stored in `ScoringCategory` + `ScoringRule` tables
+5. Each category's score = `(percentage from formula) × section base multiplier` for the faculty's designation
+6. Section base multipliers (NOT caps): Teaching (AP=60, AssoP=50, Prof=40), Research (AP=10, AssoP=20, Prof=30), Service (all=30)
+7. Research & Service scores are **additive** — each category independently contributes `base × percentage`, and all are summed with **no cap**
+8. `total_score = Teaching + Research + Service` (no cap — total can exceed 100)
+9. `final_score = total_score + bonus` (bonus is optional, entered at principal/admin level)
+10. Scoring rules are **admin-configurable** — stored in `ScoringCategory` + `ScoringRule` tables
 
 ---
 

@@ -171,23 +171,14 @@ export default function ReviewsPage() {
             else if (e.category?.section === 'SERVICE') service += val;
           });
 
-          const desig = selectedApp.faculty.designation;
-          const maxT = desig === 'PROFESSOR' ? 40 : desig === 'ASSOCIATE_PROFESSOR' ? 50 : 60;
-          const maxR = desig === 'PROFESSOR' ? 30 : desig === 'ASSOCIATE_PROFESSOR' ? 20 : 10;
-          const maxS = 30;
-
-          if (teaching > maxT) teaching = maxT;
-          if (research > maxR) research = maxR;
-          if (service > maxS) service = maxS;
-          
           const total = teaching + research + service;
 
           return (
             <div className="score-overview">
-              <ScoreCard label="Teaching" score={teaching} maxScore={maxT} color="#3b82f6" size="sm" />
-              <ScoreCard label="Research" score={research} maxScore={maxR} color="#8b5cf6" size="sm" />
-              <ScoreCard label="Service" score={service} maxScore={maxS} color="#10b981" size="sm" />
-              <ScoreCard label="Total" score={total} maxScore={100} color="#f59e0b" />
+              <ScoreCard label="Teaching" score={teaching} color="#3b82f6" size="sm" />
+              <ScoreCard label="Research" score={research} color="#8b5cf6" size="sm" />
+              <ScoreCard label="Service" score={service} color="#10b981" size="sm" />
+              <ScoreCard label="Total" score={total} color="#f59e0b" />
             </div>
           );
         })()}
@@ -300,13 +291,43 @@ export default function ReviewsPage() {
               </div>
               <div className="form-group">
                 <label>Signature (Optional)</label>
-                <input
-                  type="file"
-                  accept="image/png, image/jpeg"
-                  onChange={e => setSignatureFile(e.target.files?.[0] || null)}
-                  style={{ display: 'block', marginTop: '0.5rem' }}
-                />
-                {signatureFile && <span className="char-count">✓ {signatureFile.name} attached</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      const fileInput = document.getElementById('signature-upload-input');
+                      if (fileInput) (fileInput as HTMLInputElement).click();
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📷 Select Signature Image
+                  </button>
+                  <input
+                    id="signature-upload-input"
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    onChange={e => setSignatureFile(e.target.files?.[0] || null)}
+                    style={{ display: 'none' }}
+                  />
+                  {signatureFile ? (
+                    <span style={{ color: 'var(--success)', fontSize: '13px', fontWeight: 500 }}>
+                      ✓ {signatureFile.name}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                      No image selected
+                    </span>
+                  )}
+                </div>
               </div>
               <button className="btn-primary" onClick={handleSubmitReview} disabled={reviewing || !comments.trim()}>
                 {reviewing ? 'Submitting...' : 'Submit Review'}

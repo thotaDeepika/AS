@@ -189,17 +189,15 @@ router.put('/:applicationId/entry/:categoryId/score', authorize(Role.REVIEWER), 
       data: { reviewer_score: newScore },
     });
 
-    // Recalculate total_score
+    // Recalculate total_score — scores are purely additive, no caps
     const allEntries = await prisma.categoryEntry.findMany({
       where: { application_id: applicationId },
     });
 
-    let newTotal = 0;
     const sectionTotals = { teaching: 0, research: 0, service: 0 };
     
     for (const e of allEntries) {
       const val = Number(e.reviewer_score !== null ? e.reviewer_score : e.calculated_score);
-      newTotal += val;
       
       const category = (application as any).category_entries.find((x: any) => x.id === e.id)?.category;
       if (category) {
@@ -208,6 +206,9 @@ router.put('/:applicationId/entry/:categoryId/score', authorize(Role.REVIEWER), 
         else if (category.section === 'SERVICE') sectionTotals.service += val;
       }
     }
+
+    // No caps — section base values are multipliers, not ceilings
+    const newTotal = sectionTotals.teaching + sectionTotals.research + sectionTotals.service;
 
     // Update application total
     const updatedApp = await prisma.application.update({

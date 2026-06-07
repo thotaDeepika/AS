@@ -1,10 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { ApplicationStatus, AuditAction, Role } from '@prisma/client';
+import { ApplicationStatus, AuditAction, Role, Designation } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js';
-import { calculateApplicationScores } from '../lib/scoreEngine.js';
+import { calculateApplicationScores, calculateCategoryScore } from '../lib/scoreEngine.js';
 import upload from '../lib/upload.js';
 import { sendEmail } from '../lib/email.js';
 import { generateAppraisalPDF } from '../lib/reportGenerator.js';
@@ -184,11 +184,36 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     if (user.role === Role.FACULTY && application.faculty_id !== user.id) {
       throw new ForbiddenError('Cannot access another faculty\'s application');
     }
-    if (user.role === Role.HOD && (application as any).faculty.department.id !== user.department_id) {
+    if (user.role === Role.HOD && (application as any).faculty.department?.id !== user.department_id) {
       throw new ForbiddenError('Cannot access application outside your department');
     }
     if (user.role === Role.REVIEWER && application.reviewer_id !== user.id) {
       throw new ForbiddenError('This application is not assigned to you');
+    }
+
+    const designation = application.faculty.designation;
+    if (!designation) {
+      throw new ValidationError('Faculty designation is not set');
+    }
+
+    // Dynamic pre-calculation for Draft / Reverted applications
+    if (application.status === ApplicationStatus.DRAFT || application.status === ApplicationStatus.REVERTED) {
+      try {
+        const { entries, totals } = await calculateApplicationScores(application.id, designation);
+        // Map computed scores onto category_entries
+        application.category_entries = application.category_entries.map(entry => {
+          const computed = entries.find(e => e.category_id === entry.category_id);
+          return {
+            ...entry,
+            calculated_score: computed ? computed.calculated_score : entry.calculated_score,
+          };
+        }) as any;
+        // Temporarily set total_score and final_score for UI preview
+        application.total_score = totals.total as any;
+        application.final_score = totals.total as any;
+      } catch (err) {
+        console.error('Failed to pre-calculate scores for draft/reverted application:', err);
+      }
     }
 
     res.json({ success: true, data: { application } });
@@ -203,7 +228,14 @@ router.put('/:id/entry', authorize(Role.FACULTY), async (req: Request, res: Resp
   try {
     const { category_id, raw_value } = saveCategorySchema.parse(req.body);
 
-    const application = await prisma.application.findUnique({ where: { id: req.params.id as string } });
+    const application = await prisma.application.findUnique({
+      where: { id: req.params.id as string },
+      include: {
+        faculty: {
+          select: { designation: true }
+        }
+      }
+    });
     if (!application) throw new NotFoundError('Application');
     if (application.faculty_id !== req.user!.id) throw new ForbiddenError();
     if (application.status !== ApplicationStatus.DRAFT && application.status !== ApplicationStatus.REVERTED) throw new ValidationError('Cannot edit a submitted application');
@@ -252,10 +284,46 @@ router.put('/:id/entry', authorize(Role.FACULTY), async (req: Request, res: Resp
     }
     // --------------------------------------------------------------------
 
+    const designation = application.faculty.designation;
+    if (!designation) {
+      throw new ValidationError('Faculty designation is not set');
+    }
+
+    // Look up the category and the corresponding scoring rule for this designation
+    const category = await prisma.scoringCategory.findUnique({
+      where: { id: category_id },
+      include: {
+        scoring_rules: {
+          where: { designation: designation as any }
+        }
+      }
+    });
+
+    let calculated_score = 0;
+    if (category && category.scoring_rules[0]) {
+      const rule = category.scoring_rules[0];
+      // Section maximums by designation (from FINAL_SCORING.md)
+      const sectionMaxes: Record<string, Record<string, number>> = {
+        ASSISTANT_PROFESSOR: { TEACHING: 60, RESEARCH: 10, SERVICE: 30 },
+        ASSOCIATE_PROFESSOR: { TEACHING: 50, RESEARCH: 20, SERVICE: 30 },
+        PROFESSOR:           { TEACHING: 40, RESEARCH: 30, SERVICE: 30 },
+      };
+      const maxes = sectionMaxes[designation] || sectionMaxes.ASSISTANT_PROFESSOR;
+      const sectionMax = maxes[category.section] || 0;
+
+      calculated_score = await calculateCategoryScore(
+        category.sl_no,
+        designation,
+        raw_value,
+        Number(rule.max_weightage),
+        sectionMax
+      );
+    }
+
     const entry = await prisma.categoryEntry.upsert({
       where: { application_id_category_id: { application_id: application.id, category_id } },
-      update: { raw_value },
-      create: { application_id: application.id, category_id, raw_value },
+      update: { raw_value, calculated_score },
+      create: { application_id: application.id, category_id, raw_value, calculated_score },
     });
 
     res.json({ success: true, data: { entry } });
@@ -408,7 +476,7 @@ router.post('/:id/submit', authorize(Role.FACULTY), async (req: Request, res: Re
         const body = `Dear HOD,<br><br>
 An application is received from ${(application as any).faculty.name} for the academic year ${application.academic_year}.<br>
 You have one application to be reviewed.`;
-        await sendEmail(hod.email, subject, body);
+        sendEmail(hod.email, subject, body).catch(e => console.error("Failed to send HOD notification email:", e));
       }
     }
 
@@ -447,27 +515,29 @@ You have one application to be reviewed.`;
       },
     });
 
-    // Generate PDF and send email to faculty
-    try {
-      const pdfBuffer = await generateAppraisalPDF(application.id, 'FACULTY');
-      const facultySubject = `Appraisal Application Submitted Successfully - ${updated.academic_year}`;
-      const facultyBody = `
-        <h2>Application Submitted</h2>
-        <p>Dear ${updated.faculty.name},</p>
-        <p>Your appraisal application for the academic year ${updated.academic_year} has been successfully submitted to the HOD for review.</p>
-        <p>Your calculated preliminary score is: <strong>${totals.total.toFixed(1)}</strong></p>
-        <p>Please find attached a copy of your submitted appraisal report for your records.</p>
-        <br/>
-        <p>Best regards,<br/>Admin Team</p>
-      `;
-      const filename = `appraisal_${updated.academic_year}_${application.id.slice(0, 8)}.pdf`;
-      
-      await sendEmail(updated.faculty.email, facultySubject, facultyBody, [
-        { filename, content: pdfBuffer, contentType: 'application/pdf' }
-      ]);
-    } catch (emailErr) {
-      console.error("Failed to generate PDF or send email to faculty:", emailErr);
-    }
+    // Generate PDF and send email to faculty in background to avoid blocking the API response
+    (async () => {
+      try {
+        const pdfBuffer = await generateAppraisalPDF(application.id, 'FACULTY');
+        const facultySubject = `Appraisal Application Submitted Successfully - ${updated.academic_year}`;
+        const facultyBody = `
+          <h2>Application Submitted</h2>
+          <p>Dear ${updated.faculty.name},</p>
+          <p>Your appraisal application for the academic year ${updated.academic_year} has been successfully submitted to the HOD for review.</p>
+          <p>Your calculated preliminary score is: <strong>${totals.total.toFixed(1)}</strong></p>
+          <p>Please find attached a copy of your submitted appraisal report for your records.</p>
+          <br/>
+          <p>Best regards,<br/>Admin Team</p>
+        `;
+        const filename = `appraisal_${updated.academic_year}_${application.id.slice(0, 8)}.pdf`;
+        
+        await sendEmail(updated.faculty.email, facultySubject, facultyBody, [
+          { filename, content: pdfBuffer, contentType: 'application/pdf' }
+        ]);
+      } catch (emailErr) {
+        console.error("Failed to generate PDF or send email to faculty in background:", emailErr);
+      }
+    })();
 
     res.json({ success: true, data: { application: updated, scores: totals } });
   } catch (error) {

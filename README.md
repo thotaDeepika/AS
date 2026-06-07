@@ -54,8 +54,7 @@ The system is divided into 6 distinct organizational roles, each featuring perso
 A sophisticated backend calculation engine evaluates faculty inputs against institutional rubrics:
 - **Comprehensive Metrics:** 23 distinct categories across 3 sections (Teaching, Research, Service). These range from FCI (Faculty Course Index) scores to PhD guidance and consulting projects.
 - **Designation-Aware Logic:** Automatically scales weightages and max-caps based on whether the faculty is an Assistant Professor (e.g., higher teaching weight), Associate Professor, or Professor (e.g., higher research weight).
-- **Bonus Multipliers:** Core institutional priorities automatically receive a `2x` score multiplier to incentivize high-value academic output.
-- **Real-time Evaluation & Admin Control:** Scores are instantly calculated and capped according to the dynamic `ScoringRules` tables in the database. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
+- **Real-time Evaluation & Admin Control:** Scores are instantly calculated and capped according to the dynamic `ScoringRules` tables in the database, strictly following the institutional rubrics defined in `FINAL_SCORING.md`. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
 
 ### 📄 Advanced Reporting & Document Generation
 - **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures from the HOD, Reviewer, and Principal.
