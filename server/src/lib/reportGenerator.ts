@@ -155,7 +155,7 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   doc.moveDown(0.5);
   doc.font('Helvetica-Bold').text(`Designation: `, { continued: true }).font('Helvetica').text(designationLabels[app.faculty.designation || ''] || 'N/A');
   doc.moveDown(0.5);
-  doc.font('Helvetica-Bold').text(`Department: `, { continued: true }).font('Helvetica').text(app.faculty.department.name);
+  doc.font('Helvetica-Bold').text(`Department: `, { continued: true }).font('Helvetica').text(app.faculty.department?.name || 'N/A');
   doc.moveDown(2);
 
   const summaryColWidths = [50, 350, 95];
@@ -374,7 +374,7 @@ export async function generateConsolidatedPDF(
   let y = 100;
 
   // ── Summary Stats ──
-  const departments = [...new Set(applications.map(a => a.faculty.department.name))];
+  const departments = [...new Set(applications.map(a => a.faculty.department?.name || 'N/A'))];
   const avgScore = applications.length > 0
     ? (applications.reduce((s, a) => s + Number(a.total_score), 0) / applications.length).toFixed(1)
     : '0';
@@ -413,7 +413,7 @@ export async function generateConsolidatedPDF(
     const row = [
       String(idx + 1),
       app.faculty.name,
-      app.faculty.department.code,
+      app.faculty.department?.code || 'N/A',
       designationLabels[app.faculty.designation || ''] || 'N/A',
       '—', '—', '—',
       Number(app.total_score).toFixed(1),
@@ -498,7 +498,7 @@ export async function generateExcelReport(
 
   const deptMap = new Map<string, number[]>();
   applications.forEach(app => {
-    const dept = app.faculty.department.name;
+    const dept = app.faculty.department?.name || 'N/A';
     if (!deptMap.has(dept)) deptMap.set(dept, []);
     deptMap.get(dept)!.push(Number(app.total_score));
   });
@@ -552,7 +552,7 @@ export async function generateExcelReport(
       sl: i + 1,
       name: app.faculty.name,
       email: app.faculty.email,
-      dept: app.faculty.department.name,
+      dept: app.faculty.department?.name || 'N/A',
       designation: designationLabels[app.faculty.designation || ''] || 'N/A',
       year: app.academic_year,
       status: statusLabels[app.status] || app.status,
@@ -586,7 +586,7 @@ export async function generateExcelReport(
     const row: Record<string, any> = {
       sl: i + 1,
       name: app.faculty.name,
-      dept: app.faculty.department.code,
+      dept: app.faculty.department?.code || 'N/A',
       total: Number(app.total_score),
     };
     app.category_entries.forEach(entry => {

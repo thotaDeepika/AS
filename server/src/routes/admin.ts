@@ -264,7 +264,7 @@ router.get('/approvals-rejections', async (req: Request, res: Response, next: Ne
       faculty: {
         name: r.application.faculty.name,
         email: r.application.faculty.email,
-        department: { code: r.application.faculty.department.code }
+        department: r.application.faculty.department ? { code: r.application.faculty.department.code } : null
       },
       academic_year: r.application.academic_year,
       final_score: r.application.final_score,

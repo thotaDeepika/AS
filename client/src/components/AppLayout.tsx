@@ -68,7 +68,7 @@ export default function AppLayout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
+            <svg width={sidebarCollapsed ? "26" : "32"} height={sidebarCollapsed ? "26" : "32"} viewBox="0 0 48 48" fill="none" style={{ transition: 'width var(--transition), height var(--transition)' }}>
               <rect width="48" height="48" rx="12" fill="url(#sg)" />
               <path d="M14 34V14h12a8 8 0 010 16H20v4h-6zm6-10h6a2 2 0 000-4h-6v4z" fill="white"/>
               <defs><linearGradient id="sg" x1="0" y1="0" x2="48" y2="48"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#8b5cf6"/></linearGradient></defs>

@@ -12,7 +12,7 @@ interface User {
   is_active: boolean;
   joining_date: string | null;
   created_at: string;
-  department: { id: string; name: string; code: string };
+  department: { id: string; name: string; code: string } | null;
 }
 
 interface Department {
@@ -83,7 +83,7 @@ export default function UsersPage() {
       name: user.name,
       role: user.role,
       designation: user.designation || '',
-      department_id: user.department.id,
+      department_id: user.department?.id || '',
       password: '',
       joining_date: user.joining_date ? new Date(user.joining_date).toISOString().split('T')[0] : '',
     });
@@ -98,7 +98,7 @@ export default function UsersPage() {
           name: form.name,
           role: form.role,
           designation: ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
-          department_id: form.department_id,
+          department_id: ['FACULTY', 'HOD'].includes(form.role) ? form.department_id : null,
           joining_date: form.joining_date ? new Date(form.joining_date).toISOString() : null,
         });
         showToast('success', `User "${form.name}" updated successfully`);
@@ -108,7 +108,7 @@ export default function UsersPage() {
           name: form.name,
           role: form.role,
           designation: ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
-          department_id: form.department_id,
+          department_id: ['FACULTY', 'HOD'].includes(form.role) ? form.department_id : null,
           joining_date: form.joining_date ? new Date(form.joining_date).toISOString() : null,
           password: form.password || undefined,
         });
@@ -144,6 +144,17 @@ export default function UsersPage() {
     }
   };
 
+  const handleDelete = async (user: User) => {
+    if (!confirm(`Are you sure you want to permanently delete user "${user.name}"?\nThis action cannot be undone.`)) return;
+    try {
+      await usersApi.delete(user.id);
+      showToast('success', `User "${user.name}" deleted successfully`);
+      loadUsers(pagination.page);
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || 'Failed to delete user');
+    }
+  };
+
   const columns = [
     {
       key: 'name',
@@ -164,7 +175,7 @@ export default function UsersPage() {
       key: 'department',
       header: 'Department',
       render: (row: User) => (
-        <span className="dept-chip">{row.department.code}</span>
+        row.department ? <span className="dept-chip">{row.department.code}</span> : <span className="text-muted">—</span>
       ),
     },
     {
@@ -189,16 +200,27 @@ export default function UsersPage() {
     {
       key: 'actions',
       header: '',
-      width: '160px',
+      width: '240px',
       render: (row: User) => (
         <div className="cell-actions">
           <button className="btn-small" onClick={() => openEditModal(row)}>Edit</button>
           <button
             className={`btn-small ${row.is_active ? 'btn-danger' : 'btn-success'}`}
             onClick={() => toggleActive(row)}
+            title={row.is_active ? 'Deactivate user account' : 'Activate user account'}
           >
             {row.is_active ? 'Deactivate' : 'Activate'}
           </button>
+          {row.role !== 'ADMIN' && (
+            <button
+              className="btn-small btn-danger"
+              onClick={() => handleDelete(row)}
+              title="Permanently delete user"
+              style={{ marginLeft: '4px' }}
+            >
+              Delete
+            </button>
+          )}
           {row.role === 'FACULTY' && (
             <>
               <button
@@ -310,9 +332,16 @@ export default function UsersPage() {
                 </div>
                 <div className="form-group">
                   <label>Department</label>
-                  <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+                  {['FACULTY', 'HOD'].includes(form.role) ? (
+                    <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}>
+                      <option value="">Select Department</option>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  ) : (
+                    <select disabled value="">
+                      <option value="">Not Applicable</option>
+                    </select>
+                  )}
                 </div>
               </div>
               {['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && (
@@ -338,7 +367,7 @@ export default function UsersPage() {
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave} disabled={saving || !form.name || !form.department_id || (!editingUser && !form.email)}>
+              <button className="btn-primary" onClick={handleSave} disabled={saving || !form.name || ((form.role === 'FACULTY' || form.role === 'HOD') && !form.department_id) || (!editingUser && !form.email)}>
                 {saving ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}
               </button>
             </div>

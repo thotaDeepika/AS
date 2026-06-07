@@ -14,7 +14,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally (token expired/invalid)
+// Handle 401 globally (token expired/invalid) and normalize error responses
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -26,6 +26,19 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    
+    // Normalize server error messages (ZodError/AppError) into error.response.data.error
+    if (error.response?.data) {
+      const data = error.response.data;
+      if (!data.error) {
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          data.error = data.errors.map((e: any) => e.field ? `${e.field}: ${e.message}` : e.message).join(', ');
+        } else if (data.message) {
+          data.error = data.message;
+        }
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -63,6 +76,8 @@ export const usersApi = {
   create: (data: any) => api.post('/users', data),
 
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
+
+  delete: (id: string) => api.delete(`/users/${id}`),
 };
 
 // ─── Departments API ──────────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ model User {
   name             String
   role             Role          @default(FACULTY)
   designation      Designation?
-  department_id    String
+  department_id    String?
   is_active        Boolean       @default(true)
   joining_date     DateTime?
   created_at       DateTime      @default(now())
@@ -35,7 +35,7 @@ model User {
   assigned_reviews Application[] @relation("ReviewerAssignments")
   audit_logs       AuditLog[]
   reviews          Review[]
-  department       Department    @relation(fields: [department_id], references: [id])
+  department       Department?   @relation(fields: [department_id], references: [id])
 
   @@map("users")
 }

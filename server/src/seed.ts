@@ -52,18 +52,20 @@ async function main() {
   const defaultPassword = await bcrypt.hash('Admin@123', 10);
 
   const users = [
-    { email: 'admin@rit.edu', name: 'System Admin', role: Role.ADMIN, department_id: createdDepts['CSE'] },
-    { email: 'principal@rit.edu', name: 'Dr. Principal', role: Role.PRINCIPAL, department_id: createdDepts['CSE'] },
+    { email: 'admin@rit.edu', name: 'System Admin', role: Role.ADMIN, department_id: null },
+    { email: 'principal@rit.edu', name: 'Dr. Principal', role: Role.PRINCIPAL, department_id: null },
     { email: 'hod.cse@rit.edu', name: 'Dr. HOD CSE', role: Role.HOD, department_id: createdDepts['CSE'] },
     { email: 'faculty.cse@rit.edu', name: 'Dr. Faculty CSE', role: Role.FACULTY, department_id: createdDepts['CSE'], designation: Designation.ASSISTANT_PROFESSOR },
-    { email: 'reviewer@rit.edu', name: 'Dr. Reviewer', role: Role.REVIEWER, department_id: createdDepts['CSE'] },
-    { email: 'accounts@rit.edu', name: 'Accounts Officer', role: Role.ACCOUNTS, department_id: createdDepts['CSE'] },
+    { email: 'reviewer@rit.edu', name: 'Dr. Reviewer', role: Role.REVIEWER, department_id: null },
+    { email: 'accounts@rit.edu', name: 'Accounts Officer', role: Role.ACCOUNTS, department_id: null },
   ];
 
   for (const user of users) {
     await prisma.user.upsert({
       where: { email: user.email },
-      update: {},
+      update: {
+        department_id: user.department_id
+      },
       create: {
         ...user,
         password_hash: defaultPassword,

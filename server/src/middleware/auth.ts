@@ -19,7 +19,7 @@ declare global {
         email: string;
         name: string;
         role: Role;
-        department_id: string;
+        department_id: string | null;
       };
     }
   }

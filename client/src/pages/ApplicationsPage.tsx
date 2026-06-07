@@ -132,7 +132,7 @@ export default function ApplicationsPage() {
       showToast('success', 'Application created successfully');
       setHistoryApps(prev => [...prev, detail.data.data.application]);
     } catch (err: any) {
-      showToast('error', err.response?.data?.error || 'Failed to create application');
+      showToast('error', err.response?.data?.error || err.response?.data?.message || 'Failed to create application');
     } finally {
       setCreating(false);
     }
