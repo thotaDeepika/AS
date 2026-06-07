@@ -12,6 +12,19 @@ An enterprise-grade, full-stack web application architected to digitize and auto
 
 ---
 
+## 📖 Project Background & Motivation
+
+Historically, annual faculty performance appraisals have relied on manual, paper-heavy workflows. Faculty members had to physically compile massive portfolios containing proof of teaching metrics, research publications, patents, and institutional service. These physical files were then manually routed through the Head of Department (HOD), an external Reviewer, the Principal, and finally the Accounts department for salary increments. This process was prone to calculation errors, physical document loss, and significant administrative delays.
+
+**The RIT Faculty Appraisal System was developed to completely digitize this pipeline.**
+
+### The Core Objectives
+1. **Paperless Submissions:** Faculty can input all their achievements across 23 distinct academic categories (such as Q1/Q2 journal publications, patents, funded projects, and institutional service) directly into an intuitive web interface and upload PDF proofs.
+2. **Automated Dynamic Scoring:** The system replaces error-prone manual calculations. The backend engine automatically calculates performance scores by applying institutionally defined rubrics, automatically adjusting weightages based on the faculty member's designation (Assistant Professor, Associate Professor, or Professor).
+3. **Rigid Verification Workflow:** A strict, role-based state machine guarantees that an application cannot bypass any required level of scrutiny. It must pass through the HOD, a designated Reviewer, and the Principal before reaching the Accounts team.
+
+---
+
 ## 🌟 Key Features
 
 ### 🔄 Multi-Stage Lifecycle Engine
@@ -30,24 +43,28 @@ Each transition enforces strict Role-Based Access Control (RBAC), ensuring that 
 
 ### 🛡️ Role-Based Architecture (RBAC)
 The system is divided into 6 distinct organizational roles, each featuring personalized dashboards and restricted data access matrices:
-- **👨‍🏫 Faculty:** Draft self-assessments, populate scoring metrics, securely upload PDF proofs, and monitor application progress.
+- **👨‍🏫 Faculty:** Draft self-assessments within a strictly enforced 60-day window (90 to 30 days before their joining date anniversary). Populate scoring metrics, securely upload PDF proofs, and monitor application progress.
 - **🧑‍💼 HOD (Head of Department):** Evaluate departmental applications, append official comments, and issue primary recommendations or reversions.
-- **🕵️ Reviewer:** External domain experts who perform secondary audits on assigned applications.
-- **🏛️ Principal:** The ultimate approving authority with access to high-level departmental analytics and consolidated scoring matrices.
-- **⚙️ Admin:** Master system controllers managing user provisioning, dynamic scoring configurations, reviewer assignments, and complete audit trail oversight.
-- **💼 Accounts:** Financial processors authorized to view frozen, approved applications to trigger salary increments.
+- **🕵️ Reviewer:** External domain experts who perform secondary audits on assigned applications, with the ability to dynamically adjust awarded scores based on proof validity.
+- **🏛️ Principal:** The ultimate approving authority with access to high-level departmental analytics, consolidated scoring matrices, and final decision-making power.
+- **⚙️ Admin:** Master system controllers managing user provisioning, dynamic scoring configurations, reviewer assignments, overriding application windows, and complete audit trail oversight.
+- **💼 Accounts:** Financial processors authorized to view frozen, approved applications to trigger salary increments and institutional accounting.
 
 ### 📊 Dynamic Scoring & Analytics Engine
 A sophisticated backend calculation engine evaluates faculty inputs against institutional rubrics:
-- **Comprehensive Metrics:** 23 distinct categories across 3 sections (Teaching, Research, Service).
-- **Designation-Aware Logic:** Automatically scales weightages and max-caps based on whether the faculty is an Assistant Professor, Associate Professor, or Professor.
+- **Comprehensive Metrics:** 23 distinct categories across 3 sections (Teaching, Research, Service). These range from FCI (Faculty Course Index) scores to PhD guidance and consulting projects.
+- **Designation-Aware Logic:** Automatically scales weightages and max-caps based on whether the faculty is an Assistant Professor (e.g., higher teaching weight), Associate Professor, or Professor (e.g., higher research weight).
 - **Bonus Multipliers:** Core institutional priorities automatically receive a `2x` score multiplier to incentivize high-value academic output.
-- **Real-time Evaluation:** Scores are instantly calculated and capped according to the dynamic `ScoringRules` tables in the database, fully editable via the Admin Dashboard.
+- **Real-time Evaluation & Admin Control:** Scores are instantly calculated and capped according to the dynamic `ScoringRules` tables in the database. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
+
+### 📄 Advanced Reporting & Document Generation
+- **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures from the HOD, Reviewer, and Principal.
+- **Consolidated Excel Exports:** Generates multi-sheet Excel workbooks detailing institutional and departmental summaries, empowering the Principal and Accounts teams with actionable analytics.
 
 ### 🔒 Security & Production Resilience
 - **Cryptographic Authentication:** JWT-based stateless authentication with `bcrypt` password hashing.
 - **Hardened Backend:** Express backend secured with `helmet` (HTTP headers), `express-rate-limit` (brute-force prevention), and `compression` (optimized payloads).
-- **Immutable Audit Trail:** Every state transition and administrative action is permanently logged.
+- **Immutable Audit Trail:** Every state transition and administrative action is permanently logged with IP tracking, JSON payload snapshots, and timestamping.
 - **Nginx Reverse Proxy:** Production builds serve the React SPA via Nginx Alpine, seamlessly routing API calls and uploads to the secure backend container.
 
 ---
