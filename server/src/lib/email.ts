@@ -32,7 +32,12 @@ async function getTransporter() {
   return transporter;
 }
 
-export async function sendEmail(to: string, subject: string, body: string): Promise<void> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  body: string,
+  attachments?: { filename: string; content: Buffer; contentType?: string }[]
+): Promise<void> {
   try {
     const t = await getTransporter();
     const info = await t.sendMail({
@@ -40,6 +45,7 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
       to,
       subject,
       html: body,
+      attachments,
     });
     console.log('Message sent: %s', info.messageId);
     
