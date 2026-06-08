@@ -15,6 +15,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: true, // Allows ngrok domains to connect
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

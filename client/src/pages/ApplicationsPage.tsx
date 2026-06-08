@@ -269,7 +269,7 @@ export default function ApplicationsPage() {
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 8000);
   };
 
   if (loading) return <div className="page-loader"><div className="loader-spinner" /><p>Loading...</p></div>;

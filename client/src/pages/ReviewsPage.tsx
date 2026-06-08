@@ -87,7 +87,7 @@ export default function ReviewsPage() {
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 8000);
   };
 
   const columns = [
