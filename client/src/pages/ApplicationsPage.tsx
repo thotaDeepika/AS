@@ -308,10 +308,10 @@ export default function ApplicationsPage() {
 
       {application && (
         <>
-          {/* Reverted and Rejected Alert Banners */}
-      {isRejected && (
+          {/* Reverted Alert Banner — shown to faculty; rejection is internal-only */}
+      {isRejected && user?.role !== 'FACULTY' && (
         <div className="alert alert-danger" style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: '#ef444415', border: '1px solid #ef444440', color: '#ef4444' }}>
-          <strong>⚠️ Application Rejected:</strong> Your appraisal application has been rejected by the Principal. No further modifications are allowed.
+          <strong>⚠️ Application Rejected:</strong> This appraisal application has been rejected by the Principal.
           {principalReview.comments && <p style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>Comments: "{principalReview.comments}"</p>}
         </div>
       )}
@@ -328,7 +328,7 @@ export default function ApplicationsPage() {
         <div className="app-header-info">
           <div className="app-header-top">
             <h2>Appraisal Application</h2>
-            <StatusBadge status={application.status} />
+            <StatusBadge status={application.status} facultyView={user?.role === 'FACULTY'} />
           </div>
           <p className="app-header-year">Academic Year: {application.academic_year}</p>
           {application.submitted_at && (

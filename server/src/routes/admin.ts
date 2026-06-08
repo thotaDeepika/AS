@@ -297,11 +297,21 @@ router.post('/override-application/:facultyId', async (req: Request, res: Respon
         return res.status(400).json({ success: false, error: 'Application for this year is already open or exists.' });
       }
       if (existing.status !== 'DRAFT') {
-        // Force change to DRAFT to allow editing
+        // Force change to DRAFT to allow editing, and clear reviewer assignments and scores
         const updated = await prisma.application.update({
           where: { id: existing.id },
-          data: { status: 'DRAFT' }
+          data: {
+            status: 'DRAFT',
+            reviewer_id: null,
+            reviewer_score: null,
+          }
         });
+        
+        await prisma.categoryEntry.updateMany({
+          where: { application_id: existing.id },
+          data: { reviewer_score: null }
+        });
+
         return res.json({ success: true, message: 'Existing application forced to DRAFT mode.', data: { application: updated } });
       }
       return res.json({ success: true, message: 'Application is already open for editing.', data: { application: existing } });

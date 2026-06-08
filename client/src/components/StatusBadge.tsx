@@ -1,6 +1,6 @@
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT:              { label: 'Draft',             color: '#94a3b8', bg: '#94a3b815' },
-  REVERTED:           { label: 'Reverted',          color: '#eab308', bg: '#eab30815' },
+  REVERTED:           { label: 'Edited',            color: '#eab308', bg: '#eab30815' },
   SUBMITTED:          { label: 'Submitted',         color: '#3b82f6', bg: '#3b82f615' },
   HOD_REVIEWED:       { label: 'HOD Reviewed',      color: '#8b5cf6', bg: '#8b5cf615' },
   REVIEWER_ASSIGNED:  { label: 'Reviewer Assigned', color: '#f59e0b', bg: '#f59e0b15' },
@@ -16,13 +16,36 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   inactive:           { label: 'Inactive',          color: '#ef4444', bg: '#ef444415' },
 };
 
+// Statuses shown verbatim to faculty
+const FACULTY_VISIBLE_STATUSES = new Set(['DRAFT', 'REVERTED', 'SUBMITTED']);
+
+// All other pipeline statuses collapse to "Submitted" for faculty
+const FACULTY_SUBMITTED_CONFIG = { label: 'Submitted', color: '#3b82f6', bg: '#3b82f615' };
+// REVERTED shows as "Edited" to faculty (changes requested, re-editing in progress)
+const FACULTY_EDITED_CONFIG    = { label: 'Edited',    color: '#eab308', bg: '#eab30815' };
+
 interface StatusBadgeProps {
   status: string;
   size?: 'sm' | 'md';
+  /** When true, collapses all internal pipeline statuses to simple faculty-facing labels */
+  facultyView?: boolean;
 }
 
-export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
-  const config = statusConfig[status] || { label: status, color: '#94a3b8', bg: '#94a3b815' };
+export default function StatusBadge({ status, size = 'md', facultyView = false }: StatusBadgeProps) {
+  let config: { label: string; color: string; bg: string };
+
+  if (facultyView) {
+    if (status === 'REVERTED') {
+      config = FACULTY_EDITED_CONFIG;
+    } else if (!FACULTY_VISIBLE_STATUSES.has(status)) {
+      // HOD_REVIEWED, REVIEWER_ASSIGNED, FROZEN, SENT_TO_ACCOUNTS, etc. → "Submitted"
+      config = FACULTY_SUBMITTED_CONFIG;
+    } else {
+      config = statusConfig[status] || FACULTY_SUBMITTED_CONFIG;
+    }
+  } else {
+    config = statusConfig[status] || { label: status, color: '#94a3b8', bg: '#94a3b815' };
+  }
 
   return (
     <span

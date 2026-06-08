@@ -55,7 +55,7 @@ export default function SubmissionHistoryPage() {
               {historyApps.map(app => (
                 <tr key={app.id}>
                   <td>{app.academic_year}</td>
-                  <td><StatusBadge status={app.status} size="sm" /></td>
+                  <td><StatusBadge status={app.status} size="sm" facultyView /></td>
                   <td>{app.total_score != null ? Number(app.total_score).toFixed(1) : '—'}</td>
                   <td>{app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}</td>
                   <td>

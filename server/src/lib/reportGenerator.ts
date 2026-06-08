@@ -370,7 +370,7 @@ export async function generateConsolidatedPDF(
     .text(`Generated: ${new Date().toLocaleDateString('en-IN')} | ${applications.length} Applications`, 40, 48, { align: 'center' });
 
   try {
-    const logoPath = path.join(__dirname, 'logo.png');
+    const logoPath = path.join(__dirname, '../../assets/logo.png');
     doc.image(logoPath, doc.page.width - 120, 10, { width: 60 });
   } catch (err) {
     console.error('Logo not found', err);

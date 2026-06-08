@@ -2,7 +2,7 @@ import { PrismaClient, Role, Designation, ScoringSection } from '@prisma/client'
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '../.env' });
+dotenv.config({ path: '../../.env' });
 
 const prisma = new PrismaClient();
 

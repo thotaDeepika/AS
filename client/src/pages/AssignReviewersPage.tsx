@@ -186,9 +186,9 @@ export default function AssignReviewersPage() {
       header: '',
       width: '140px',
       render: (row: Application) =>
-        row.status === 'HOD_REVIEWED' && !row.reviewer_id ? (
-          <button className="btn-small btn-accent" onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(''); }}>
-            🔀 Assign
+        row.status === 'HOD_REVIEWED' ? (
+          <button className="btn-small btn-accent" onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(row.reviewer_id || ''); }}>
+            🔀 {row.reviewer_id ? 'Reassign' : 'Assign'}
           </button>
         ) : null,
     },
