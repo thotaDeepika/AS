@@ -40,6 +40,16 @@ model User {
   @@map("users")
 }
 
+model OtpVerification {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  otp_hash   String
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@map("otp_verifications")
+}
+
 model Application {
   id               String            @id @default(uuid())
   faculty_id       String

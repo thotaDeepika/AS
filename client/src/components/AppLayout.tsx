@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
+import api from '../lib/api';
 
 const roleLabels: Record<string, string> = {
   ADMIN: 'Administrator',
@@ -46,7 +47,16 @@ export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // Theme removed as per user request
+
+  // Password change modal state
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
 
   if (!user) return null;
 
@@ -113,9 +123,26 @@ export default function AppLayout() {
               </div>
             )}
           </div>
-          <button onClick={handleLogout} className="sidebar-logout" title="Sign out">
-            {sidebarCollapsed ? '🚪' : 'Sign out'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', width: '100%', flexDirection: sidebarCollapsed ? 'column' : 'row' }}>
+            <button
+              onClick={() => {
+                setChangePasswordError('');
+                setChangePasswordSuccess('');
+                setOldPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+                setIsChangePasswordOpen(true);
+              }}
+              className="sidebar-action-btn"
+              title="Change Password"
+              style={{ flex: 1 }}
+            >
+              {sidebarCollapsed ? '🔑' : 'Change PW'}
+            </button>
+            <button onClick={handleLogout} className="sidebar-logout" title="Sign out" style={{ flex: 1 }}>
+              {sidebarCollapsed ? '🚪' : 'Sign out'}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -141,6 +168,115 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Change Password Modal */}
+      {isChangePasswordOpen && (
+        <div className="modal-overlay" onClick={() => setIsChangePasswordOpen(false)}>
+          <div className="modal-content modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Change Password</h3>
+              <button className="modal-close" onClick={() => setIsChangePasswordOpen(false)}>×</button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setChangePasswordError('');
+                setChangePasswordSuccess('');
+
+                if (newPassword !== confirmNewPassword) {
+                  setChangePasswordError('New passwords do not match.');
+                  return;
+                }
+
+                setIsChangingPassword(true);
+                try {
+                  await api.put('/auth/change-password', {
+                    currentPassword: oldPassword,
+                    newPassword,
+                  });
+                  setChangePasswordSuccess('Password updated successfully!');
+                  setOldPassword('');
+                  setNewPassword('');
+                  setConfirmNewPassword('');
+                  setTimeout(() => {
+                    setIsChangePasswordOpen(false);
+                    setChangePasswordSuccess('');
+                  }, 2000);
+                } catch (err: any) {
+                  setChangePasswordError(
+                    err.response?.data?.error ||
+                    err.response?.data?.message ||
+                    'Failed to change password. Please verify current password.'
+                  );
+                } finally {
+                  setIsChangingPassword(false);
+                }
+              }}
+            >
+              <div className="modal-body">
+                {changePasswordError && (
+                  <div className="login-error" style={{ margin: 0 }} role="alert">
+                    <span>{changePasswordError}</span>
+                  </div>
+                )}
+                {changePasswordSuccess && (
+                  <div className="login-success-banner" style={{ background: '#ecfdf5', border: '1px solid #10b981', color: '#065f46', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <span>{changePasswordSuccess}</span>
+                  </div>
+                )}
+                <div className="form-group">
+                  <label htmlFor="oldPassword">Current Password</label>
+                  <input
+                    id="oldPassword"
+                    type="password"
+                    value={oldPassword}
+                    onChange={e => setOldPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="newPassword">New Password</label>
+                  <input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="confirmNewPassword">Confirm New Password</label>
+                  <input
+                    id="confirmNewPassword"
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={e => setConfirmNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setIsChangePasswordOpen(false)}
+                  disabled={isChangingPassword}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? 'Updating...' : 'Change Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -197,6 +197,10 @@ code { font-family:'JetBrains Mono',monospace; background:var(--bg-elevated); pa
 .sidebar-logout { padding:6px 10px; background:none; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:11px; font-family:inherit; cursor:pointer; transition:all var(--transition); text-align:center; }
 .sidebar-logout:hover { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#fca5a5; }
 
+.sidebar-action-btn { padding:6px 10px; background:none; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:11px; font-family:inherit; cursor:pointer; transition:all var(--transition); text-align:center; }
+.sidebar-action-btn:hover { background:var(--accent-glow); border-color:var(--accent); color:var(--accent-hover); }
+
+
 /* Main Content */
 .main-content { flex:1; margin-left:220px; display:flex; flex-direction:column; transition:margin-left var(--transition); }
 .sidebar-collapsed .main-content { margin-left:64px; }
