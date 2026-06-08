@@ -142,7 +142,6 @@ export default function LoginPage() {
                     {isLoading ? <span className="login-btn-loading"><svg className="spinner" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="50" strokeLinecap="round"/></svg>Signing in...</span> : 'Sign in'}
                   </button>
                 </form>
-                <div className="login-help"><p>Test: <code>admin@rit.edu</code> / <code>Admin@123</code></p></div>
               </>
             )}
 

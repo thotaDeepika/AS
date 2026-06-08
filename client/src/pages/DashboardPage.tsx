@@ -60,12 +60,12 @@ export default function DashboardPage() {
         {user.role === 'HOD' && (
           <>
             <DashCard title="Pending Reviews" desc="Review department applications" icon="📋" color="#3b82f6" onClick={() => navigate('/reviews')} />
-            <DashCard title="All Applications" desc="View department faculty submissions" icon="📝" color="#10b981" onClick={() => navigate('/applications')} />
+            <DashCard title="All Applications" desc="View department faculty submissions" icon="📝" color="#10b981" onClick={() => navigate('/reviews')} />
           </>
         )}
         {user.role === 'PRINCIPAL' && (
           <>
-            <DashCard title="All Applications" desc="Review and approve applications" icon="📋" color="#8b5cf6" onClick={() => navigate('/applications')} />
+            <DashCard title="All Applications" desc="Review and approve applications" icon="📋" color="#8b5cf6" onClick={() => navigate('/principal-review')} />
             <DashCard title="Reports" desc="Generate institutional reports" icon="📈" color="#3b82f6" onClick={() => navigate('/reports')} />
           </>
         )}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api, { applicationsApi, getFileUrl } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
@@ -70,6 +70,7 @@ function calculateSectionScores(entries: CategoryEntry[], _maxes: Record<string,
 export default function ApplicationsPage() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [application, setApplication] = useState<Application | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +95,20 @@ export default function ApplicationsPage() {
 
   // Load categories + application
   useEffect(() => {
+    const urlId = searchParams.get('id');
+    if (user && user.role !== 'FACULTY' && !urlId) {
+      if (user.role === 'PRINCIPAL') {
+        navigate('/principal-review', { replace: true });
+      } else if (user.role === 'HOD' || user.role === 'REVIEWER') {
+        navigate('/reviews', { replace: true });
+      } else if (user.role === 'ADMIN') {
+        navigate('/assign-reviewers', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+      return;
+    }
+
     (async () => {
       try {
         // Load categories and apps independently
@@ -115,25 +130,23 @@ export default function ApplicationsPage() {
         }
 
         setCategories(cats);
+        setHistoryApps(apps);
 
-        if (apps.length > 0) {
-          setHistoryApps(apps);
-          const urlId = searchParams.get('id');
-          // Default to the requested ID, or active DRAFT/REVERTED application
-          let targetApp = urlId ? apps.find((a: any) => a.id === urlId) : null;
-          if (!targetApp && !urlId) {
-            targetApp = apps.find((a: any) => a.status === 'DRAFT' || a.status === 'REVERTED');
-          }
+        let targetAppId = urlId;
+        if (!targetAppId && user?.role === 'FACULTY' && apps.length > 0) {
+          // Default to the active DRAFT/REVERTED application or the first one
+          const targetApp = apps.find((a: any) => a.status === 'DRAFT' || a.status === 'REVERTED') || apps[0];
+          targetAppId = targetApp?.id;
+        }
 
-          if (targetApp) {
-            const detail = await applicationsApi.getById(targetApp.id);
-            const app = detail.data.data.application;
-            // Convert Prisma Decimal fields to numbers
-            if (app.total_score !== null) app.total_score = Number(app.total_score);
-            if (app.final_score !== null) app.final_score = Number(app.final_score);
-            if (app.bonus_score !== null) app.bonus_score = Number(app.bonus_score);
-            setApplication(app);
-          }
+        if (targetAppId) {
+          const detail = await applicationsApi.getById(targetAppId);
+          const app = detail.data.data.application;
+          // Convert Prisma Decimal fields to numbers
+          if (app.total_score !== null) app.total_score = Number(app.total_score);
+          if (app.final_score !== null) app.final_score = Number(app.final_score);
+          if (app.bonus_score !== null) app.bonus_score = Number(app.bonus_score);
+          setApplication(app);
         }
       } catch (err) {
         console.error(err);
@@ -264,7 +277,7 @@ export default function ApplicationsPage() {
   // Faculty role: if no application is open, show create card
   const showCreatePrompt = user?.role === 'FACULTY' && !application;
 
-  const principalReview = application?.reviews?.find((r: any) => r.role_at_review === 'PRINCIPAL');
+  const principalReview = [...(application?.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
   const isRejected = principalReview?.decision === 'REJECTED';
   const lastReview = application?.reviews && application.reviews.length > 0
     ? application.reviews[application.reviews.length - 1]
@@ -348,6 +361,11 @@ export default function ApplicationsPage() {
                 {submitting ? 'Submitting...' : '🚀 Submit Application'}
               </button>
             </>
+          )}
+          {!isDraft && (
+            <button className="btn-secondary" onClick={handlePreviewPDF}>
+              📄 View PDF
+            </button>
           )}
         </div>
       </div>

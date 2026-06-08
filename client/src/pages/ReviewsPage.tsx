@@ -19,6 +19,7 @@ interface Application {
     department: { name: string; code: string };
   };
   _count: { category_entries: number; reviews: number };
+  reviews?: any[];
 }
 
 export default function ReviewsPage() {
@@ -113,7 +114,15 @@ export default function ReviewsPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (row: Application) => <StatusBadge status={row.status} size="sm" />,
+      render: (row: Application) => {
+        if (row.status === 'PRINCIPAL_REVIEWED') {
+          const principalReview = [...(row.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
+          if (principalReview) {
+            return <StatusBadge status={principalReview.decision} size="sm" />;
+          }
+        }
+        return <StatusBadge status={row.status} size="sm" />;
+      },
     },
     {
       key: 'total_score',
@@ -135,11 +144,22 @@ export default function ReviewsPage() {
     {
       key: 'actions',
       header: '',
-      width: '100px',
+      width: '180px',
       render: (row: Application) => (
-        <button className="btn-small" onClick={() => handleViewDetail(row)}>
-          View →
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button className="btn-small" onClick={() => handleViewDetail(row)}>
+            Review →
+          </button>
+          <a
+            href={`/applications?id=${row.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-small btn-secondary"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            👁️ Details
+          </a>
+        </div>
       ),
     },
   ];
@@ -150,7 +170,18 @@ export default function ReviewsPage() {
       <div className="review-detail-page">
         {toast && <div className={`toast toast-${toast.type}`}>{toast.type === 'success' ? '✓' : '✕'} {toast.msg}</div>}
 
-        <button className="btn-back" onClick={() => setSelectedApp(null)}>← Back to List</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <button className="btn-back" onClick={() => setSelectedApp(null)} style={{ margin: 0 }}>← Back to List</button>
+          <a
+            href={`/applications?id=${selectedApp.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '13px' }}
+          >
+            👁️ View Full Application Form
+          </a>
+        </div>
 
         <div className="review-detail-header">
           <div>

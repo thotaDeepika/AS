@@ -103,11 +103,30 @@ export default function PrincipalDashboardPage() {
     }
   };
 
-  const filtered = filterStatus === 'ALL' ? applications : applications.filter(a => a.status === filterStatus);
+  const filtered = filterStatus === 'ALL' ? applications : applications.filter(a => {
+    if (filterStatus === 'PRINCIPAL_REVIEWED') {
+      if (a.status !== 'PRINCIPAL_REVIEWED') return false;
+      const latestReview = [...(a.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
+      return latestReview?.decision === 'APPROVED';
+    }
+    if (filterStatus === 'PRINCIPAL_REJECTED') {
+      if (a.status !== 'PRINCIPAL_REVIEWED') return false;
+      const latestReview = [...(a.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
+      return latestReview?.decision === 'REJECTED';
+    }
+    return a.status === filterStatus;
+  });
 
   // Stats
   const pending = applications.filter(a => a.status === 'REVIEWER_REVIEWED').length;
-  const approved = applications.filter(a => ['PRINCIPAL_REVIEWED', 'FROZEN', 'SENT_TO_ACCOUNTS'].includes(a.status)).length;
+  const approved = applications.filter(a => {
+    if (['FROZEN', 'SENT_TO_ACCOUNTS'].includes(a.status)) return true;
+    if (a.status === 'PRINCIPAL_REVIEWED') {
+      const latestReview = [...(a.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
+      return latestReview?.decision === 'APPROVED';
+    }
+    return false;
+  }).length;
   const avgScore = applications.length > 0
     ? (applications.reduce((sum, a) => sum + (a.total_score ? Number(a.total_score) : 0), 0) / applications.length).toFixed(1)
     : '0.0';
@@ -127,7 +146,15 @@ export default function PrincipalDashboardPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (row: Application) => <StatusBadge status={row.status} size="sm" />,
+      render: (row: Application) => {
+        if (row.status === 'PRINCIPAL_REVIEWED') {
+          const principalReview = [...(row.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
+          if (principalReview) {
+            return <StatusBadge status={principalReview.decision} size="sm" />;
+          }
+        }
+        return <StatusBadge status={row.status} size="sm" />;
+      },
     },
     {
       key: 'total_score',
@@ -153,6 +180,15 @@ export default function PrincipalDashboardPage() {
           >
             <span className="download-icon">📥</span> PDF
           </button>
+          <a
+            href={`/applications?id=${row.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-small btn-secondary"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            👁️ View
+          </a>
           <button className="btn-small btn-accent" onClick={() => viewDetail(row)}>
             🔍 Review
           </button>
@@ -198,6 +234,7 @@ export default function PrincipalDashboardPage() {
           <option value="ALL">All Statuses</option>
           <option value="REVIEWER_REVIEWED">Awaiting Review</option>
           <option value="PRINCIPAL_REVIEWED">Approved</option>
+          <option value="PRINCIPAL_REJECTED">Rejected</option>
           <option value="FROZEN">Frozen</option>
           <option value="SENT_TO_ACCOUNTS">Sent to Accounts</option>
         </select>
@@ -251,6 +288,17 @@ export default function PrincipalDashboardPage() {
                     <div className="detail-item">
                       <span className="detail-label">Status</span>
                       <StatusBadge status={selectedApp.status} />
+                    </div>
+                    <div className="detail-item" style={{ gridColumn: 'span 2', display: 'flex', gap: '10px', marginTop: '8px' }}>
+                      <a
+                        href={`/applications?id=${selectedApp.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-secondary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', padding: '6px 12px', fontSize: '13px' }}
+                      >
+                        👁️ View Full Application Details
+                      </a>
                     </div>
                   </div>
 

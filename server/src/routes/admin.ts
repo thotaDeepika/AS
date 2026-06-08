@@ -144,7 +144,10 @@ router.post('/freeze', async (req: Request, res: Response, next: NextFunction) =
 
     await prisma.application.updateMany({
       where: { id: { in: application_ids } },
-      data: { status: ApplicationStatus.FROZEN },
+      data: {
+        status: ApplicationStatus.FROZEN,
+        frozen_at: new Date()
+      },
     });
 
     for (const app of applications) {
@@ -259,7 +262,16 @@ router.get('/approvals-rejections', async (req: Request, res: Response, next: Ne
       orderBy: { reviewed_at: 'desc' }
     });
 
-    const applications = principalReviews.map(r => ({
+    const seenApplicationIds = new Set<string>();
+    const uniqueReviews: typeof principalReviews = [];
+    for (const r of principalReviews) {
+      if (!seenApplicationIds.has(r.application_id)) {
+        seenApplicationIds.add(r.application_id);
+        uniqueReviews.push(r);
+      }
+    }
+
+    const applications = uniqueReviews.map(r => ({
       id: r.application.id,
       faculty: {
         name: r.application.faculty.name,

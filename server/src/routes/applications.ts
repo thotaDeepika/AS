@@ -69,6 +69,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             select: { id: true, name: true, email: true, designation: true, department: { select: { id: true, name: true, code: true } } },
           },
           reviewer: { select: { id: true, name: true } },
+          reviews: {
+            include: { reviewer: { select: { id: true, name: true, role: true } } },
+            orderBy: { reviewed_at: 'asc' },
+          },
           _count: { select: { category_entries: true, reviews: true } },
         },
       }),
@@ -78,7 +82,45 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     res.json({
       success: true,
       data: {
-        applications,
+        applications: await (async () => {
+          const applicationIds = applications.map(a => a.id);
+          const [frozenLogs, sentLogs] = await Promise.all([
+            prisma.auditLog.findMany({
+              where: {
+                entity_id: { in: applicationIds },
+                action: AuditAction.APPLICATION_FROZEN,
+              },
+              orderBy: { created_at: 'desc' },
+            }),
+            prisma.auditLog.findMany({
+              where: {
+                entity_id: { in: applicationIds },
+                action: AuditAction.SENT_TO_ACCOUNTS,
+              },
+              orderBy: { created_at: 'desc' },
+            }),
+          ]);
+
+          const frozenLogMap = new Map<string, Date>();
+          frozenLogs.forEach(log => {
+            if (log.entity_id && !frozenLogMap.has(log.entity_id)) {
+              frozenLogMap.set(log.entity_id, log.created_at);
+            }
+          });
+
+          const sentLogMap = new Map<string, Date>();
+          sentLogs.forEach(log => {
+            if (log.entity_id && !sentLogMap.has(log.entity_id)) {
+              sentLogMap.set(log.entity_id, log.created_at);
+            }
+          });
+
+          return applications.map(a => ({
+            ...a,
+            frozen_at: a.frozen_at || frozenLogMap.get(a.id) || null,
+            sent_to_accounts_at: sentLogMap.get(a.id) || null,
+          }));
+        })(),
         pagination: { page: parseInt(page as string), limit: take, total, pages: Math.ceil(total / take) },
       },
     });
@@ -216,7 +258,31 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       }
     }
 
-    res.json({ success: true, data: { application } });
+    // Fetch Audit Logs for dates
+    const [frozenLog, sentLog] = await Promise.all([
+      prisma.auditLog.findFirst({
+        where: {
+          entity_id: application.id,
+          action: AuditAction.APPLICATION_FROZEN,
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.auditLog.findFirst({
+        where: {
+          entity_id: application.id,
+          action: AuditAction.SENT_TO_ACCOUNTS,
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+    ]);
+
+    const applicationWithDates = {
+      ...application,
+      frozen_at: application.frozen_at || frozenLog?.created_at || null,
+      sent_to_accounts_at: sentLog?.created_at || null,
+    };
+
+    res.json({ success: true, data: { application: applicationWithDates } });
   } catch (error) {
     next(error);
   }

@@ -221,36 +221,38 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
     return startY + 80;
   }
 
-  const hodReviews = app.reviews.filter(r => r.reviewer.role === 'HOD');
-  const reviewerReviews = app.reviews.filter(r => r.reviewer.role === 'REVIEWER');
-  const principalReviews = app.reviews.filter(r => r.reviewer.role === 'PRINCIPAL');
+  if (userRole !== 'FACULTY') {
+    const hodReviews = app.reviews.filter(r => r.reviewer.role === 'HOD');
+    const reviewerReviews = app.reviews.filter(r => r.reviewer.role === 'REVIEWER');
+    const principalReviews = app.reviews.filter(r => r.reviewer.role === 'PRINCIPAL');
 
-  const orderedReviews: { title: string, review: any }[] = [];
-  
-  // HOD
-  if (hodReviews.length > 0) {
-    hodReviews.forEach(r => orderedReviews.push({ title: 'Comments from HoD:', review: r }));
-  } else {
-    orderedReviews.push({ title: 'Comments from HoD:', review: null });
-  }
+    const orderedReviews: { title: string, review: any }[] = [];
+    
+    // HOD
+    if (hodReviews.length > 0) {
+      hodReviews.forEach(r => orderedReviews.push({ title: 'Comments from HoD:', review: r }));
+    } else {
+      orderedReviews.push({ title: 'Comments from HoD:', review: null });
+    }
 
-  // REVIEWER
-  if (reviewerReviews.length > 0) {
-    reviewerReviews.forEach(r => orderedReviews.push({ title: 'Comments from Reviewer:', review: r }));
-  } else {
-    orderedReviews.push({ title: 'Comments from Reviewer:', review: null });
-  }
+    // REVIEWER
+    if (reviewerReviews.length > 0) {
+      reviewerReviews.forEach(r => orderedReviews.push({ title: 'Comments from Reviewer:', review: r }));
+    } else {
+      orderedReviews.push({ title: 'Comments from Reviewer:', review: null });
+    }
 
-  // PRINCIPAL
-  if (principalReviews.length > 0) {
-    principalReviews.forEach(r => orderedReviews.push({ title: 'Comments from Principal:', review: r }));
-  } else {
-    orderedReviews.push({ title: 'Comments from Principal:', review: null });
-  }
+    // PRINCIPAL
+    if (principalReviews.length > 0) {
+      principalReviews.forEach(r => orderedReviews.push({ title: 'Comments from Principal:', review: r }));
+    } else {
+      orderedReviews.push({ title: 'Comments from Principal:', review: null });
+    }
 
-  yPos += 30;
-  for (const item of orderedReviews) {
-    yPos = drawSignatureBlock(item.title, item.review, yPos);
+    yPos += 30;
+    for (const item of orderedReviews) {
+      yPos = drawSignatureBlock(item.title, item.review, yPos);
+    }
   }
 
   // ═════════════════════════════════════════════════════════════════════════════

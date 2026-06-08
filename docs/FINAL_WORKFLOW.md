@@ -15,19 +15,21 @@ The appraisal application follows a **strict forward-only sequential workflow**.
 | 3 | `HOD_REVIEWED` | HOD | HOD has reviewed (recommended or not recommended) |
 | 4 | `REVIEWER_ASSIGNED` | Admin | Admin assigns a reviewer from any department |
 | 5 | `REVIEWER_REVIEWED` | Reviewer | Reviewer has verified (recommended or not recommended) |
-| 6 | `PRINCIPAL_REVIEWED` | Principal | Principal approves or rejects |
+| 6 | `PRINCIPAL_REVIEWED` | Principal | Principal has reviewed (APPROVED or REJECTED) |
 | 7 | `FROZEN` | Principal/Admin | Approved application is frozen (immutable) |
 | 8 | `SENT_TO_ACCOUNTS` | Admin | Frozen application sent to accounts for processing |
+| 9 | `REVERTED` | HOD/Admin | Reverted back to Faculty for editing and resubmitting |
 
 ## Review Decision (Enum — stored per review action)
 
 ```
-RECOMMENDED | NOT_RECOMMENDED | APPROVED | REJECTED
+RECOMMENDED | NOT_RECOMMENDED | APPROVED | REJECTED | REVERTED
 ```
 
-- HOD uses: `RECOMMENDED` / `NOT_RECOMMENDED`
+- HOD uses: `RECOMMENDED` / `NOT_RECOMMENDED` / `REVERTED`
 - Reviewer uses: `RECOMMENDED` / `NOT_RECOMMENDED`
 - Principal uses: `APPROVED` / `REJECTED`
+- Admin uses: `REVERTED` (through Admin override options)
 
 ---
 
@@ -35,22 +37,21 @@ RECOMMENDED | NOT_RECOMMENDED | APPROVED | REJECTED
 
 ### Step 1: Faculty Submission
 ```
-DRAFT → SUBMITTED
+DRAFT / REVERTED → SUBMITTED
 ```
-- Faculty creates application, fills all 23 scoring categories
+- Faculty creates or edits an application, fills all 23 scoring categories
 - Uploads PDF proofs per category
 - Scores auto-calculated on backend upon submission
-- **After submission: Faculty CANNOT edit the application**
+- **After submission: Faculty CANNOT edit the application** unless it is explicitly reverted back to them.
 
 ### Step 2: HOD Review
 ```
-SUBMITTED → HOD_REVIEWED
+SUBMITTED → HOD_REVIEWED or REVERTED
 ```
 - HOD sees all submitted applications from their department
 - Verifies uploaded proofs against claimed values
 - Adds comments
-- Marks as `RECOMMENDED` or `NOT_RECOMMENDED`
-- Application moves to Admin's queue regardless of decision
+- Marks as `RECOMMENDED` or `NOT_RECOMMENDED` (application moves to Admin's queue) OR `REVERTED` (application goes back to `REVERTED` status for Faculty to edit and resubmit).
 
 ### Step 3: Admin Routes to Reviewer
 ```
@@ -79,12 +80,13 @@ REVIEWER_REVIEWED → (Admin forwards) → PRINCIPAL_REVIEWED
 
 ### Step 6: Principal Final Decision
 ```
-→ PRINCIPAL_REVIEWED → FROZEN
+REVIEWER_REVIEWED → PRINCIPAL_REVIEWED (APPROVED / REJECTED) → FROZEN (if approved)
 ```
 - Principal reviews the full application trail (faculty data, HOD comments, reviewer comments)
 - Adds final comments
 - Sets final decision: `APPROVED` or `REJECTED`
-- If approved → application is `FROZEN` (immutable, cannot be reopened)
+- If approved -> application is subsequently frozen via Admin override or automatically (`FROZEN` - immutable, cannot be reopened).
+- If rejected -> Principal's decision is recorded, and the application remains in `PRINCIPAL_REVIEWED` status but flagged as rejected (Admin can later allow edits or override if needed).
 
 ### Step 7: Accounts Processing
 ```
@@ -96,36 +98,20 @@ FROZEN → SENT_TO_ACCOUNTS
 
 ---
 
-## Workflow Rules
+## Workflow Rules & Confidentiality Masking
 
-1. Score calculation is **always automatic** on the backend
-2. Scores are **never editable** by any role
-3. File uploads are **PDF only**
-4. Faculty **cannot edit** after submission
-5. **No reverse workflow** — rejected applications stay rejected
-6. Resubmission support should be **configurable for future** (feature flag)
-7. Every state transition creates an **audit log entry**
-8. Every comment is **timestamped and attributed** to the user who wrote it
+1. **Faculty Privacy & Review Masking:** To maintain confidentiality of the review process, Faculty members *never* see detailed review statuses like `PRINCIPAL_REVIEWED` (Approved or Rejected), `HOD_REVIEWED`, `REVIEWER_ASSIGNED`, `REVIEWER_REVIEWED`, or comments/signatures/scoring overrides from HOD, Reviewers, or Principal. In their portal and in the PDF reports generated for them, the application is presented only in a simplified state flow (`DRAFT`, `SUBMITTED`, or `REVERTED`).
+2. Score calculation is **always automatic** on the backend.
+3. Scores are **never editable** by any role.
+4. File uploads are **PDF only**.
+5. Faculty **cannot edit** after submission unless the application is in `REVERTED` or `DRAFT` status.
+6. Every state transition creates an **audit log entry**.
+7. Every comment is **timestamped and attributed** to the user who wrote it.
 
 ---
 
 ## Workflow Diagram
 
 ```
-┌──────────┐    ┌───────────┐    ┌──────────────┐    ┌────────────────────┐
-│  DRAFT   │───▶│ SUBMITTED │───▶│ HOD_REVIEWED │───▶│ REVIEWER_ASSIGNED  │
-└──────────┘    └───────────┘    └──────────────┘    └────────────────────┘
-  (Faculty)      (Faculty)          (HOD)                  (Admin)
-                                                              │
-                                                              ▼
-┌───────────────────┐    ┌────────────────────┐    ┌────────────────────┐
-│ SENT_TO_ACCOUNTS  │◀───│      FROZEN        │◀───│ PRINCIPAL_REVIEWED │
-└───────────────────┘    └────────────────────┘    └────────────────────┘
-      (Admin)             (Principal/Admin)          (Principal)
-                                                              ▲
-                                                              │
-                                                   ┌────────────────────┐
-                                                   │ REVIEWER_REVIEWED  │
-                                                   └────────────────────┘
                                                         (Reviewer)
 ```

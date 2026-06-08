@@ -28,7 +28,7 @@ Historically, annual faculty performance appraisals have relied on manual, paper
 ## 🌟 Key Features
 
 ### 🔄 Multi-Stage Lifecycle Engine
-The platform encodes the institution's official appraisal policies into a rigid **8-stage state machine**:
+The platform encodes the institution's official appraisal policies into a rigid state machine:
 ```mermaid
 graph LR
     A[Faculty Draft] --> B[HOD Review]
@@ -38,8 +38,12 @@ graph LR
     E --> F[Principal Approval]
     F --> G[Admin Freezes]
     G --> H[Accounts Processing]
+    B -.->|Revert to Edit| A
+    F -.->|Revert/Reject to Admin| E
 ```
 Each transition enforces strict Role-Based Access Control (RBAC), ensuring that applications can only be advanced or reverted by the legally authorized role for that specific stage.
+- **`REVERTED` State:** If HOD or Admin rejects/reverts an application during review, it goes to the `REVERTED` status, allowing the faculty to edit and resubmit.
+- **Faculty Privacy & Status Masking:** Internal review details, including HOD/Reviewer/Principal comments, scores, and signatures, are hidden from the Faculty view in both the web portal and the generated PDF report. Faculty members only see `DRAFT`, `SUBMITTED`, or `REVERTED` stages.
 
 ### 🛡️ Role-Based Architecture (RBAC)
 The system is divided into 6 distinct organizational roles, each featuring personalized dashboards and restricted data access matrices:
@@ -48,7 +52,7 @@ The system is divided into 6 distinct organizational roles, each featuring perso
 - **🕵️ Reviewer:** External domain experts who perform secondary audits on assigned applications, with the ability to dynamically adjust awarded scores based on proof validity.
 - **🏛️ Principal:** The ultimate approving authority with access to high-level departmental analytics, consolidated scoring matrices, and final decision-making power.
 - **⚙️ Admin:** Master system controllers managing user provisioning, dynamic scoring configurations, reviewer assignments, overriding application windows, and complete audit trail oversight.
-- **💼 Accounts:** Financial processors authorized to view frozen, approved applications to trigger salary increments and institutional accounting.
+- **💼 Accounts:** Financial processors authorized to view frozen, approved applications to trigger salary increments and institutional accounting. Accounts Dashboard dynamically resolves missing historical timestamps (`frozen_at` and `sent_to_accounts_at`) via the Audit Log table to prevent data mismatch without database migration.
 
 ### 📊 Dynamic Scoring & Analytics Engine
 A sophisticated backend calculation engine evaluates faculty inputs against institutional rubrics:
@@ -58,7 +62,7 @@ A sophisticated backend calculation engine evaluates faculty inputs against inst
 - **Real-time Evaluation & Admin Control:** Scores are instantly calculated according to the dynamic `ScoringRules` tables in the database. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
 
 ### 📄 Advanced Reporting & Document Generation
-- **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures from the HOD, Reviewer, and Principal.
+- **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures from the HOD, Reviewer, and Principal (internal review components are hidden when viewed by Faculty role).
 - **Consolidated Excel Exports:** Generates multi-sheet Excel workbooks detailing institutional and departmental summaries with active resolved scores (including reviewer overrides), empowering the Principal and Accounts teams.
 - **Background Mail Processing:** Email notifications and PDF report dispatches run asynchronously in background tasks, ensuring instant HTTP responses and zero frontend submit-button freeze.
 
@@ -121,7 +125,7 @@ The production setup uses a highly optimized multi-stage Docker build. The front
 
 4. **Access the Application**
    - **Frontend UI:** `http://localhost:80` (or your domain/IP)
-   - **Default Admin Login:** `admin@msrit.edu` / `admin123`
+   - **Default Admin Login:** `admin@rit.edu` / `Admin@123`
 
 ### 2. 💻 Local Development
 

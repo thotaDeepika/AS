@@ -16,6 +16,7 @@ interface Application {
     department: { name: string; code: string };
   };
   reviewer?: { id: string; name: string; email: string } | null;
+  reviews?: any[];
 }
 
 interface Reviewer {
@@ -161,7 +162,15 @@ export default function AssignReviewersPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (row: Application) => <StatusBadge status={row.status} size="sm" />,
+      render: (row: Application) => {
+        if (row.status === 'PRINCIPAL_REVIEWED') {
+          const principalReview = [...(row.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
+          if (principalReview) {
+            return <StatusBadge status={principalReview.decision} size="sm" />;
+          }
+        }
+        return <StatusBadge status={row.status} size="sm" />;
+      },
     },
     {
       key: 'total_score',
@@ -184,13 +193,25 @@ export default function AssignReviewersPage() {
     {
       key: 'actions',
       header: '',
-      width: '140px',
-      render: (row: Application) =>
-        row.status === 'HOD_REVIEWED' ? (
-          <button className="btn-small btn-accent" onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(row.reviewer_id || ''); }}>
-            🔀 {row.reviewer_id ? 'Reassign' : 'Assign'}
-          </button>
-        ) : null,
+      width: '200px',
+      render: (row: Application) => (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <a
+            href={`/applications?id=${row.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-small btn-secondary"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            👁️ View
+          </a>
+          {row.status === 'HOD_REVIEWED' && (
+            <button className="btn-small btn-accent" onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(row.reviewer_id || ''); }}>
+              🔀 {row.reviewer_id ? 'Reassign' : 'Assign'}
+            </button>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -241,6 +262,22 @@ export default function AssignReviewersPage() {
       key: 'reviewed_at',
       header: 'Reviewed Date',
       render: (row: any) => new Date(row.reviewed_at).toLocaleDateString(),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '100px',
+      render: (row: any) => (
+        <a
+          href={`/applications?id=${row.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-small btn-secondary"
+          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+        >
+          👁️ View
+        </a>
+      ),
     },
   ];
 
