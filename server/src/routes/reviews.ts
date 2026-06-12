@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js';
 import { upload } from '../lib/upload.js';
+import supabase from '../lib/supabase.js';
 
 const router = Router();
 router.use(authenticate);
@@ -39,12 +40,33 @@ const WORKFLOW_TRANSITIONS: Record<string, { allowedRoles: Role[]; nextStatus: A
 
 // ─── POST /api/reviews/upload-signature — Upload signature image ────────────
 
-router.post('/upload-signature', upload.single('file'), (req: Request, res: Response, next: NextFunction) => {
+router.post('/upload-signature', upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) throw new ValidationError('No signature file provided');
+
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = req.file.originalname.split('.').pop() || 'png';
+    const storageFilename = `signatures/${uniqueSuffix}.${ext}`;
+
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('proofs')
+      .upload(storageFilename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      throw new Error('Failed to upload signature to cloud storage');
+    }
+
+    const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(storageFilename);
+    const publicUrl = publicUrlData.publicUrl;
+
     res.json({
       success: true,
-      data: { file_path: req.file.path.replace(/\\/g, '/') }
+      data: { file_path: publicUrl }
     });
   } catch (error) {
     next(error);

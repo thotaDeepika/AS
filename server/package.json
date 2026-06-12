@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "@supabase/supabase-js": "^2.108.1",
     "@types/pdfkit": "^0.17.6",
     "bcrypt": "^5.1.1",
     "compression": "^1.8.1",

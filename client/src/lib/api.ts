@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -47,6 +47,7 @@ export default api;
 
 export const getFileUrl = (filePath: string) => {
   if (!filePath) return '';
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
   const normalized = filePath.replace(/\\/g, '/');
   return `/${normalized}`;
 };

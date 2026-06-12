@@ -8,6 +8,7 @@ import { calculateApplicationScores, calculateCategoryScore } from '../lib/score
 import upload from '../lib/upload.js';
 import { sendEmail } from '../lib/email.js';
 import { generateAppraisalPDF } from '../lib/reportGenerator.js';
+import supabase from '../lib/supabase.js';
 
 const router = Router();
 router.use(authenticate);
@@ -422,11 +423,32 @@ router.post('/:id/upload/:categoryId', authorize(Role.FACULTY), upload.single('f
     const itemIndexStr = req.query.item_index as string | undefined;
     const itemIndex = itemIndexStr ? parseInt(itemIndexStr, 10) : null;
 
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = req.file.originalname.split('.').pop() || 'pdf';
+    const storageFilename = `${uniqueSuffix}.${ext}`;
+    const storagePath = `applications/${application.id}/${storageFilename}`;
+
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('proofs')
+      .upload(storagePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      throw new Error('Failed to upload file to cloud storage');
+    }
+
+    const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(storagePath);
+    const publicUrl = publicUrlData.publicUrl;
+
     const doc = await prisma.proofDocument.create({
       data: {
         category_entry_id: entry.id,
         file_name: req.file.originalname,
-        file_path: req.file.path,
+        file_path: publicUrl,
         file_size: req.file.size,
         mime_type: req.file.mimetype,
         item_index: isNaN(itemIndex as number) ? null : itemIndex,
@@ -469,10 +491,21 @@ router.delete('/:id/proof/:docId', async (req: Request, res: Response, next: Nex
       throw new NotFoundError('Proof Document');
     }
 
-    // Delete the file from filesystem
-    const fs = await import('fs');
-    if (fs.existsSync(doc.file_path)) {
-      fs.unlinkSync(doc.file_path);
+    // Delete the file from filesystem or Supabase
+    if (doc.file_path.startsWith('http')) {
+      const publicUrlPrefix = `${process.env.SUPABASE_URL}/storage/v1/object/public/proofs/`;
+      if (doc.file_path.startsWith(publicUrlPrefix)) {
+        const storagePath = doc.file_path.replace(publicUrlPrefix, '');
+        const { error: deleteError } = await supabase.storage.from('proofs').remove([storagePath]);
+        if (deleteError) {
+          console.error('Failed to delete from Supabase:', deleteError);
+        }
+      }
+    } else {
+      const fs = await import('fs');
+      if (fs.existsSync(doc.file_path)) {
+        fs.unlinkSync(doc.file_path);
+      }
     }
 
     await prisma.proofDocument.delete({

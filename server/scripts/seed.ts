@@ -50,9 +50,10 @@ async function main() {
 
   // ─── USERS ──────────────────────────────────────────────────────────────────
   const defaultPassword = await bcrypt.hash('Admin@123', 10);
+  const adminPassword = await bcrypt.hash('Admin@MSRIT2026', 10);
 
   const users = [
-    { email: 'admin@rit.edu', name: 'System Admin', role: Role.ADMIN, department_id: null },
+    { email: 'admin_appraisal@msrit.edu', name: 'System Admin', role: Role.ADMIN, department_id: null, _custom_password: adminPassword },
     { email: 'principal@rit.edu', name: 'Dr. Principal', role: Role.PRINCIPAL, department_id: null },
     { email: 'hod.cse@rit.edu', name: 'Dr. HOD CSE', role: Role.HOD, department_id: createdDepts['CSE'] },
     { email: 'faculty.cse@rit.edu', name: 'Dr. Faculty CSE', role: Role.FACULTY, department_id: createdDepts['CSE'], designation: Designation.ASSISTANT_PROFESSOR },
@@ -61,14 +62,22 @@ async function main() {
   ];
 
   for (const user of users) {
+    const { _custom_password, ...userData } = user as any;
+    const passwordToUse = _custom_password || defaultPassword;
+    
+    if (userData.department_id === null) {
+      delete userData.department_id;
+    }
+    
     await prisma.user.upsert({
-      where: { email: user.email },
+      where: { email: userData.email },
       update: {
-        department_id: user.department_id
+        department_id: userData.department_id || null,
+        password_hash: passwordToUse
       },
       create: {
-        ...user,
-        password_hash: defaultPassword,
+        ...userData,
+        password_hash: passwordToUse,
       },
     });
   }
