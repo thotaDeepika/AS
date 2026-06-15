@@ -426,23 +426,17 @@ router.post('/:id/upload/:categoryId', authorize(Role.FACULTY), upload.single('f
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = req.file.originalname.split('.').pop() || 'pdf';
     const storageFilename = `${uniqueSuffix}.${ext}`;
-    const storagePath = `applications/${application.id}/${storageFilename}`;
-
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('proofs')
-      .upload(storagePath, req.file.buffer, {
-        contentType: req.file.mimetype,
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error('Supabase upload error:', uploadError);
-      throw new Error('Failed to upload file to cloud storage');
+    const fs = await import('fs');
+    const path = await import('path');
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads', 'applications', application.id);
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
+    const localFilePath = path.join(uploadDir, storageFilename);
+    fs.writeFileSync(localFilePath, req.file.buffer);
 
-    const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(storagePath);
-    const publicUrl = publicUrlData.publicUrl;
+    const publicUrl = `/uploads/applications/${application.id}/${storageFilename};`.replace(';', ''); // weird replace to keep it clean from formatting bugs
+    // const publicUrl = `/uploads/applications/${application.id}/${storageFilename}`;
 
     const doc = await prisma.proofDocument.create({
       data: {
@@ -503,8 +497,11 @@ router.delete('/:id/proof/:docId', async (req: Request, res: Response, next: Nex
       }
     } else {
       const fs = await import('fs');
-      if (fs.existsSync(doc.file_path)) {
-        fs.unlinkSync(doc.file_path);
+      const path = await import('path');
+      const localRelativePath = doc.file_path.startsWith('/uploads/') ? doc.file_path.replace('/uploads/', '') : doc.file_path;
+      const actualFilePath = path.resolve(process.env.UPLOAD_DIR || './uploads', localRelativePath);
+      if (fs.existsSync(actualFilePath)) {
+        fs.unlinkSync(actualFilePath);
       }
     }
 

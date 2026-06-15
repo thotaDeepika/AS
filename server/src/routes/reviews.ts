@@ -44,25 +44,20 @@ router.post('/upload-signature', upload.single('file'), async (req: Request, res
   try {
     if (!req.file) throw new ValidationError('No signature file provided');
 
+    const fs = await import('fs');
+    const path = await import('path');
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = req.file.originalname.split('.').pop() || 'png';
-    const storageFilename = `signatures/${uniqueSuffix}.${ext}`;
-
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('proofs')
-      .upload(storageFilename, req.file.buffer, {
-        contentType: req.file.mimetype,
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error('Supabase upload error:', uploadError);
-      throw new Error('Failed to upload signature to cloud storage');
+    const storageFilename = `${uniqueSuffix}.${ext}`;
+    
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads', 'signatures');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
+    const localFilePath = path.join(uploadDir, storageFilename);
+    fs.writeFileSync(localFilePath, req.file.buffer);
 
-    const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(storageFilename);
-    const publicUrl = publicUrlData.publicUrl;
+    const publicUrl = `/uploads/signatures/${storageFilename}`;
 
     res.json({
       success: true,
