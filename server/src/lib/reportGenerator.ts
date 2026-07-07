@@ -272,11 +272,16 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
 
   for (const entry of app.category_entries) {
     const rawVal = entry.raw_value as any || {};
-    const count = (rawVal.count || 0) + (rawVal.books || 0) + (rawVal.chapters || 0);
+    const isGuidance = entry.category.sl_no >= 8 && entry.category.sl_no <= 10;
+    const count = isGuidance ? 0 : (rawVal.count || 0) + (rawVal.books || 0) + (rawVal.chapters || 0);
     const hasGlobalDocs = entry.proof_documents.some((d: any) => d.item_index == null);
 
     let detailsText = '';
     
+    if (isGuidance && rawVal.count !== undefined && rawVal.count !== null) {
+      detailsText += `Number of Batches/Students: ${rawVal.count}\n`;
+    }
+
     if (rawVal.description) {
       detailsText += `${rawVal.description}\n`;
     }

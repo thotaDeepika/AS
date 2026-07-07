@@ -564,14 +564,26 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
     // Categories 8-10: Research Guidance (UG/PG/PhD)
     if (sl >= 8 && sl <= 10) {
       return (
-        <div className="category-field">
-          <label>Number of Batches/Students</label>
-          <input
-            type="number" min="0"
-            value={localValues.count ?? ''}
-            onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
-            disabled={!isDraft} placeholder="0"
-          />
+        <div className="category-fields-row" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="category-field">
+            <label>Number of Batches/Students</label>
+            <input
+              type="number" min="0"
+              value={localValues.count ?? ''}
+              onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
+              disabled={!isDraft} placeholder="0"
+            />
+          </div>
+          <div className="category-field">
+            <label>Description / Details</label>
+            <textarea
+              value={localValues.description ?? ''}
+              onChange={e => updateField('description', e.target.value)}
+              disabled={!isDraft}
+              placeholder="Provide details about the batches/students guided..."
+              rows={3}
+            />
+          </div>
         </div>
       );
     }
@@ -687,9 +699,11 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
         {(() => {
           const dynamicCount = 
-            (typeof localValues.count === 'number' ? localValues.count : 0) +
-            (typeof localValues.books === 'number' ? localValues.books : 0) +
-            (typeof localValues.chapters === 'number' ? localValues.chapters : 0);
+            (category.sl_no >= 8 && category.sl_no <= 10)
+              ? 0
+              : (typeof localValues.count === 'number' ? localValues.count : 0) +
+                (typeof localValues.books === 'number' ? localValues.books : 0) +
+                (typeof localValues.chapters === 'number' ? localValues.chapters : 0);
 
           if (dynamicCount > 0) {
             return (

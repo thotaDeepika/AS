@@ -83,22 +83,23 @@ export default function LoginPage() {
         <div className="login-branding">
           <div className="login-branding-content">
             <div className="login-logo">
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <rect width="48" height="48" rx="12" fill="url(#lg)" />
-                <path d="M14 34V14h12a8 8 0 010 16H20v4h-6zm6-10h6a2 2 0 000-4h-6v4z" fill="white"/>
-                <defs><linearGradient id="lg" x1="0" y1="0" x2="48" y2="48"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#8b5cf6"/></linearGradient></defs>
-              </svg>
+              <img 
+                src="/ramaiahlogo.jpeg" 
+                alt="Ramaiah Logo" 
+                style={{ 
+                  width: '64px', 
+                  height: '64px', 
+                  objectFit: 'contain', 
+                  borderRadius: '12px',
+                  backgroundColor: '#ffffff',
+                  padding: '4px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }} 
+              />
             </div>
             <h1 className="login-title">Faculty Appraisal<br/>& Increment System</h1>
             <p className="login-subtitle">Ramaiah Institute of Technology, Bangalore</p>
-            <div className="login-features">
-              {['Automated Score Calculation','Multi-level Review Workflow','Digital Proof Management'].map(f=>(
-                <div className="login-feature" key={f}>
-                  <div className="login-feature-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg></div>
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
+
           </div>
         </div>
         <div className="login-form-panel">

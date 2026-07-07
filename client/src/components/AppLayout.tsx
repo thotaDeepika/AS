@@ -78,11 +78,17 @@ export default function AppLayout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <svg width={sidebarCollapsed ? "26" : "32"} height={sidebarCollapsed ? "26" : "32"} viewBox="0 0 48 48" fill="none" style={{ transition: 'width var(--transition), height var(--transition)' }}>
-              <rect width="48" height="48" rx="12" fill="url(#sg)" />
-              <path d="M14 34V14h12a8 8 0 010 16H20v4h-6zm6-10h6a2 2 0 000-4h-6v4z" fill="white"/>
-              <defs><linearGradient id="sg" x1="0" y1="0" x2="48" y2="48"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#8b5cf6"/></linearGradient></defs>
-            </svg>
+            <img 
+              src="/ramaiahlogo.jpeg" 
+              alt="Ramaiah Logo" 
+              style={{ 
+                width: sidebarCollapsed ? '26px' : '32px', 
+                height: sidebarCollapsed ? '26px' : '32px', 
+                objectFit: 'contain', 
+                borderRadius: '4px',
+                transition: 'width var(--transition), height var(--transition)'
+              }} 
+            />
             {!sidebarCollapsed && <span className="brand-text">RIT Appraisal</span>}
           </div>
           <button
@@ -150,12 +156,22 @@ export default function AppLayout() {
       <main className="main-content">
         <header className="main-header">
           <div className="header-left">
-            <h2 className="header-greeting">
-              Welcome, {['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) ? user.name : user.name.split(' ')[0]}
-            </h2>
-            {!['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) && user.department?.name && (
-              <span className="header-dept">{user.department.name}</span>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <img src="/ramaiahlogo.jpeg" alt="Ramaiah Logo" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                  Ramaiah Institute of Technology
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 className="header-greeting" style={{ margin: 0 }}>
+                  Welcome, {['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) ? user.name : user.name.split(' ')[0]}
+                </h2>
+                {!['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) && user.department?.name && (
+                  <span className="header-dept">{user.department.name}</span>
+                )}
+              </div>
+            </div>
           </div>
           <div className="header-right">
             {/* Theme toggle removed */}
