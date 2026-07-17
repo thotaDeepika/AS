@@ -487,17 +487,217 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // Category 1: FCI Score
     if (sl === 1) {
+      const fciEntries = localValues.fci_entries || [];
+
+      const calculateColumnAverages = (entries: any[]) => {
+        let academicSum = 0; let academicCount = 0;
+        let attitudeSum = 0; let attitudeCount = 0;
+        let disciplineSum = 0; let disciplineCount = 0;
+
+        entries.forEach(entry => {
+          const academic = parseFloat(entry.academic_score);
+          const attitude = parseFloat(entry.attitude);
+          const discipline = parseFloat(entry.discipline);
+
+          if (!isNaN(academic)) { academicSum += academic; academicCount++; }
+          if (!isNaN(attitude)) { attitudeSum += attitude; attitudeCount++; }
+          if (!isNaN(discipline)) { disciplineSum += discipline; disciplineCount++; }
+        });
+
+        const academicAvg = academicCount > 0 ? academicSum / academicCount : null;
+        const attitudeAvg = attitudeCount > 0 ? attitudeSum / attitudeCount : null;
+        const disciplineAvg = disciplineCount > 0 ? disciplineSum / disciplineCount : null;
+
+        return { academicAvg, attitudeAvg, disciplineAvg };
+      };
+
+      const { academicAvg, attitudeAvg, disciplineAvg } = calculateColumnAverages(fciEntries);
+
+      const calculateFciPercentage = (entries: any[]) => {
+        if (!entries || entries.length === 0) return '';
+        const avgs = calculateColumnAverages(entries);
+
+        let totalAvgSum = 0;
+        let totalAvgCount = 0;
+        
+        if (avgs.academicAvg !== null) { totalAvgSum += avgs.academicAvg; totalAvgCount++; }
+        if (avgs.attitudeAvg !== null) { totalAvgSum += avgs.attitudeAvg; totalAvgCount++; }
+        if (avgs.disciplineAvg !== null) { totalAvgSum += avgs.disciplineAvg; totalAvgCount++; }
+
+        return totalAvgCount > 0 ? parseFloat((totalAvgSum / totalAvgCount).toFixed(2)) : '';
+      };
+
+      const handleAddFciEntry = () => {
+        const newEntries = [...fciEntries, { academic_year: '', subjects: '', academic_score: '', attitude: '', discipline: '' }];
+        updateField('fci_entries', newEntries);
+      };
+
+      const handleRemoveFciEntry = (index: number) => {
+        const newEntries = fciEntries.filter((_: any, i: number) => i !== index);
+        updateField('fci_entries', newEntries);
+        updateField('fci_percentage', calculateFciPercentage(newEntries));
+      };
+
+      const handleFciEntryChange = (index: number, field: string, value: string) => {
+        const newEntries = [...fciEntries];
+        newEntries[index] = { ...newEntries[index], [field]: value };
+        updateField('fci_entries', newEntries);
+        updateField('fci_percentage', calculateFciPercentage(newEntries));
+      };
+
       return (
-        <div className="category-field">
-          <label>Average FCI Score (%)</label>
-          <input
-            type="number"
-            min="0" max="100" step="0.1"
-            value={localValues.fci_percentage ?? ''}
-            onChange={e => updateField('fci_percentage', e.target.value === '' ? '' : parseFloat(e.target.value))}
-            disabled={!isDraft}
-            placeholder="e.g. 82.5"
-          />
+        <div className="category-field fci-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            FCI Score Details
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Academic Year</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Subjects</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Academic Score</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Attitude</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Discipline</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {fciEntries.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No FCI entries added. Click "+ Add Row" below to start.
+                    </td>
+                  </tr>
+                )}
+                {fciEntries.map((entry: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={entry.academic_year || ''}
+                        onChange={e => handleFciEntryChange(index, 'academic_year', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="e.g. 2023-2024"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={entry.subjects || ''}
+                        onChange={e => handleFciEntryChange(index, 'subjects', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Subject Name"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={entry.academic_score || ''}
+                        onChange={e => handleFciEntryChange(index, 'academic_score', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="0-100"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={entry.attitude || ''}
+                        onChange={e => handleFciEntryChange(index, 'attitude', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="0-100"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={entry.discipline || ''}
+                        onChange={e => handleFciEntryChange(index, 'discipline', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="0-100"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveFciEntry(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              {fciEntries.length > 0 && (
+                <tfoot style={{ backgroundColor: '#f8fafc', fontWeight: 'bold' }}>
+                  <tr>
+                    <td colSpan={2} style={{ border: '1px solid #333', padding: '10px', textAlign: 'right' }}>Column Averages:</td>
+                    <td style={{ border: '1px solid #333', padding: '10px' }}>
+                      {academicAvg !== null ? academicAvg.toFixed(2) : '-'}
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '10px' }}>
+                      {attitudeAvg !== null ? attitudeAvg.toFixed(2) : '-'}
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '10px' }}>
+                      {disciplineAvg !== null ? disciplineAvg.toFixed(2) : '-'}
+                    </td>
+                    {isDraft && <td style={{ border: '1px solid #333', padding: '10px' }}></td>}
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddFciEntry} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                marginBottom: '1rem',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                display: 'inline-block'
+              }}
+            >
+              + Add Row
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label>Average FCI Score (%)</label>
+            <input
+              type="number"
+              min="0" max="100" step="0.1"
+              value={localValues.fci_percentage ?? ''}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
+              placeholder="e.g. 82.5"
+            />
+            <small style={{ display: 'block', marginTop: '0.25rem', color: '#666' }}>
+              This is auto-calculated based on the column averages above.
+            </small>
+          </div>
         </div>
       );
     }
@@ -506,16 +706,285 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // Categories 2-4: Paper/Publication counts
     if (sl >= 2 && sl <= 4) {
+      const publications = localValues.publications || [];
+
+      const handleAddPublication = () => {
+        const newPubs = [...publications, { doi: '', paperTitle: '', journalName: '', publicationDate: '', issn: '', journalCategory: '' }];
+        updateField('publications', newPubs);
+        updateField('count', newPubs.length);
+      };
+
+      const handleRemovePublication = (index: number) => {
+        const newPubs = publications.filter((_: any, i: number) => i !== index);
+        updateField('publications', newPubs);
+        updateField('count', newPubs.length);
+      };
+
+      const handlePublicationChange = (index: number, field: string, value: string) => {
+        const newPubs = [...publications];
+        newPubs[index] = { ...newPubs[index], [field]: value };
+        updateField('publications', newPubs);
+      };
+
+      const handleFetchDoi = async (doiValue: string, index: number) => {
+        if (!doiValue) {
+          alert('Please enter a DOI first.');
+          return;
+        }
+
+        try {
+          const normalizeDoi = (doi: string) => {
+            let cleaned = doi.trim();
+            cleaned = cleaned.replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+            cleaned = cleaned.replace(/^doi:\s*/i, '');
+            return cleaned;
+          };
+          const cleanDoi = normalizeDoi(doiValue);
+          
+          const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(cleanDoi)}`);
+          if (!response.ok) {
+            throw new Error('DOI lookup failed. Please check the DOI and try again.');
+          }
+          const data = await response.json();
+          const title = Array.isArray(data?.message?.title) ? data.message.title[0] : '';
+          const journal = Array.isArray(data?.message?.['container-title']) ? data.message['container-title'][0] : '';
+          const issnArray = data?.message?.ISSN || [];
+          const extractedIssn = Array.isArray(issnArray) && issnArray.length > 0 ? issnArray[0] : '';
+          
+          const parseCrossrefDate = (message: any) => {
+            const dateParts = message?.published?.['date-parts']?.[0]
+              || message?.['published-print']?.['date-parts']?.[0]
+              || message?.issued?.['date-parts']?.[0]
+              || message?.created?.['date-parts']?.[0];
+            if (!Array.isArray(dateParts) || dateParts.length === 0) return '';
+            const [year, month = 1, day = 1] = dateParts;
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          };
+          const publicationDateValue = parseCrossrefDate(data?.message);
+
+          if (!title && !journal) {
+            alert('DOI found but title/journal metadata is unavailable.');
+            return;
+          }
+
+          const newPubs = [...(localValues.publications || [])];
+          newPubs[index] = {
+            ...newPubs[index],
+            paperTitle: title || newPubs[index].paperTitle,
+            journalName: journal || newPubs[index].journalName,
+            publicationDate: publicationDateValue || newPubs[index].publicationDate,
+            issn: extractedIssn || newPubs[index].issn,
+          };
+          updateField('publications', newPubs);
+          updateField('count', newPubs.length);
+
+          alert('Paper metadata loaded from DOI. Please select the Journal Category.');
+        } catch (err: any) {
+          alert(err.message || 'Unable to fetch metadata from DOI.');
+        }
+      };
+
       return (
-        <div className="category-field">
-          <label>Number of Papers/Publications</label>
-          <input
-            type="number" min="0"
-            value={localValues.count ?? ''}
-            onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
-            disabled={!isDraft}
-            placeholder="e.g. 2"
-          />
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            Publications Details
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>DOI</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Paper Title (Auto)</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Journal Name (Auto)</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Date</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>ISSN (Auto)</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Category (Q1-Q4)</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {publications.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 8 : 7} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No publications added. Click "+ Add Publication" below to start.
+                    </td>
+                  </tr>
+                )}
+                {publications.map((pub: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '180px' }}>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input
+                          type="text"
+                          value={pub.doi || ''}
+                          onChange={e => handlePublicationChange(index, 'doi', e.target.value)}
+                          disabled={!isDraft}
+                          placeholder="DOI"
+                          style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        />
+                        {isDraft && (
+                          <button type="button" onClick={() => handleFetchDoi(pub.doi, index)} style={{ padding: '6px 8px', backgroundColor: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                            Fetch
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={pub.paperTitle || ''}
+                        onChange={e => handlePublicationChange(index, 'paperTitle', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Title"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={pub.journalName || ''}
+                        onChange={e => handlePublicationChange(index, 'journalName', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Journal"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                      <input
+                        type="date"
+                        value={pub.publicationDate || ''}
+                        onChange={e => handlePublicationChange(index, 'publicationDate', e.target.value)}
+                        disabled={!isDraft}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={pub.issn || ''}
+                        onChange={e => handlePublicationChange(index, 'issn', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="ISSN"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '120px' }}>
+                      <select
+                        value={pub.journalCategory || ''}
+                        onChange={e => handlePublicationChange(index, 'journalCategory', e.target.value)}
+                        disabled={!isDraft}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="">Select</option>
+                        <option value="Q1">Q1</option>
+                        <option value="Q2">Q2</option>
+                        <option value="Q3">Q3</option>
+                        <option value="Q4">Q4</option>
+                        <option value="SCI">SCI</option>
+                        <option value="SCIE">SCIE</option>
+                        <option value="Scopus">Scopus</option>
+                        <option value="WoS">WoS</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {pub.issn && (
+                        <a 
+                          href={`https://www.scimagojr.com/journalsearch.php?q=${encodeURIComponent(pub.issn)}&tip=issn`} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px', color: '#2563eb', textDecoration: 'underline' }}
+                        >
+                          Verify on ScimagoJR
+                        </a>
+                      )}
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemovePublication(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddPublication} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                marginBottom: '1rem',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                display: 'inline-block'
+              }}
+            >
+              + Add Publication
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label>Total Papers/Publications</label>
+            <input
+              type="number"
+              value={localValues.count ?? 0}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '100px' }}
+            />
+            <small style={{ display: 'block', marginTop: '0.25rem', color: '#666' }}>
+              This is auto-calculated based on the table entries above.
+            </small>
+          </div>
         </div>
       );
     }
@@ -699,7 +1168,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
         {(() => {
           const dynamicCount = 
-            (category.sl_no >= 8 && category.sl_no <= 10)
+            (category.sl_no >= 8 && category.sl_no <= 10) || (category.sl_no >= 2 && category.sl_no <= 4)
               ? 0
               : (typeof localValues.count === 'number' ? localValues.count : 0) +
                 (typeof localValues.books === 'number' ? localValues.books : 0) +
@@ -765,7 +1234,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           const fallbackDocs = entry?.proof_documents?.filter(d => d.item_index == null || d.item_index === undefined) || [];
           return (
             <>
-              {isDraft && (
+              {isDraft && ![1, 2, 3, 4].includes(category.sl_no) && (
                 <div className="category-upload">
                   <FileUpload
                     onFileSelect={(file) => onUpload(file)}
@@ -783,6 +1252,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
                   />
                 </div>
               )}
+
 
               {!isDraft && fallbackDocs.length > 0 && (
                 <div className="category-docs">
