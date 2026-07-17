@@ -1074,17 +1074,262 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // ── SERVICE ──
 
-    // Category 14: FDP/Seminar/Workshop organized (days slab)
-    if (sl === 14) {
+    // Categories 13-18: Table format
+    if ([13, 14, 15, 16, 17, 18].includes(sl)) {
+      const records = localValues.records || [];
+
+      const updateDays = (recs: any[]) => {
+        let total = 0;
+        recs.forEach(r => {
+          if (r.startDate && r.endDate) {
+            const s = new Date(r.startDate);
+            const e = new Date(r.endDate);
+            if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+              const diffTime = Math.abs(e.getTime() - s.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+              total += diffDays;
+            }
+          }
+        });
+        updateField('days', total);
+      };
+
+      const handleAddRecord = () => {
+        const newRecords = [...records, {}];
+        updateField('records', newRecords);
+        updateField('count', newRecords.length);
+        if (sl === 14) updateDays(newRecords);
+      };
+
+      const handleRemoveRecord = (index: number) => {
+        const newRecords = records.filter((_: any, i: number) => i !== index);
+        updateField('records', newRecords);
+        updateField('count', newRecords.length);
+        if (sl === 14) updateDays(newRecords);
+      };
+
+      const handleRecordChange = (index: number, field: string, value: string) => {
+        const newRecords = [...records];
+        newRecords[index] = { ...newRecords[index], [field]: value };
+        updateField('records', newRecords);
+        if (sl === 14 && (field === 'startDate' || field === 'endDate')) {
+          updateDays(newRecords);
+        }
+      };
+
       return (
-        <div className="category-field">
-          <label>Number of Days</label>
-          <input
-            type="number" min="0"
-            value={localValues.days ?? ''}
-            onChange={e => updateField('days', e.target.value === '' ? '' : parseInt(e.target.value))}
-            disabled={!isDraft} placeholder="e.g. 5"
-          />
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block', textTransform: 'uppercase' }}>
+            {sl === 13 ? 'Reviewer / Chair Details' :
+             sl === 14 ? 'Organized Events Details' :
+             sl === 15 ? 'Invited Talks Details' :
+             sl === 16 ? 'Outside Institute Events Details' :
+             sl === 17 ? 'Inside Institute Events Details' :
+             'Industry Relations Details'}
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '8px' }}>#</th>
+                  {sl === 13 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Activity Type (Reviewer/Chair)</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Conference/Journal Name</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Date</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Description</th>
+                    </>
+                  )}
+                  {sl === 14 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Title</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Role</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Start Date</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>End Date</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Place</th>
+                    </>
+                  )}
+                  {sl === 15 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Talk Title</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Organization</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Date</th>
+                    </>
+                  )}
+                  {sl === 16 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Name</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Organization</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Start Date</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>End Date</th>
+                    </>
+                  )}
+                  {sl === 17 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Name</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Department</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Start Date</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>End Date</th>
+                    </>
+                  )}
+                  {sl === 18 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Industry Name</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Activity Type</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Date</th>
+                      <th style={{ border: '1px solid #333', padding: '8px' }}>Description</th>
+                    </>
+                  )}
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {records.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 8 : 7} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No entries added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {records.map((rec: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>{index + 1}</td>
+                    {sl === 13 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.activityType || ''} onChange={e => handleRecordChange(index, 'activityType', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.name || ''} onChange={e => handleRecordChange(index, 'name', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.date || ''} onChange={e => handleRecordChange(index, 'date', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.description || ''} onChange={e => handleRecordChange(index, 'description', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                      </>
+                    )}
+                    {sl === 14 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.name || ''} onChange={e => handleRecordChange(index, 'name', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.role || ''} onChange={e => handleRecordChange(index, 'role', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.startDate || ''} onChange={e => handleRecordChange(index, 'startDate', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.endDate || ''} onChange={e => handleRecordChange(index, 'endDate', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.organization || ''} onChange={e => handleRecordChange(index, 'organization', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                      </>
+                    )}
+                    {sl === 15 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.name || ''} onChange={e => handleRecordChange(index, 'name', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.organization || ''} onChange={e => handleRecordChange(index, 'organization', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.date || ''} onChange={e => handleRecordChange(index, 'date', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                      </>
+                    )}
+                    {sl === 16 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.name || ''} onChange={e => handleRecordChange(index, 'name', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.organization || ''} onChange={e => handleRecordChange(index, 'organization', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.startDate || ''} onChange={e => handleRecordChange(index, 'startDate', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.endDate || ''} onChange={e => handleRecordChange(index, 'endDate', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                      </>
+                    )}
+                    {sl === 17 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.name || ''} onChange={e => handleRecordChange(index, 'name', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.organization || ''} onChange={e => handleRecordChange(index, 'organization', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.startDate || ''} onChange={e => handleRecordChange(index, 'startDate', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.endDate || ''} onChange={e => handleRecordChange(index, 'endDate', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                      </>
+                    )}
+                    {sl === 18 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.name || ''} onChange={e => handleRecordChange(index, 'name', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.activityType || ''} onChange={e => handleRecordChange(index, 'activityType', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="date" value={rec.date || ''} onChange={e => handleRecordChange(index, 'date', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}><input type="text" value={rec.description || ''} onChange={e => handleRecordChange(index, 'description', e.target.value)} disabled={!isDraft} style={{ width: '100%', boxSizing: 'border-box' }} /></td>
+                      </>
+                    )}
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button type="button" onClick={() => handleRemoveRecord(index)} style={{ padding: '4px 8px', backgroundColor: '#ff4d4f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddRecord} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                marginBottom: '1rem',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                display: 'block',
+                width: '100%'
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ textTransform: 'uppercase' }}>TOTAL ENTRIES/ACTIVITIES</label>
+            <input
+              type="number"
+              value={localValues.count ?? 0}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '100px', marginLeft: '10px' }}
+            />
+            {sl === 14 && (
+              <>
+                <label style={{ textTransform: 'uppercase', marginLeft: '1rem' }}>TOTAL DAYS</label>
+                <input
+                  type="number"
+                  value={localValues.days ?? 0}
+                  disabled={true}
+                  style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '100px', marginLeft: '10px' }}
+                />
+              </>
+            )}
+            <small style={{ display: 'block', marginTop: '0.25rem', color: '#666' }}>
+              This is auto-calculated based on the table entries above.
+            </small>
+          </div>
         </div>
       );
     }
@@ -1136,7 +1381,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       );
     }
 
-    // Default: count-based input (categories 13, 15-18, 20-22)
+    // Default: count-based input (categories 20-22)
     return (
       <div className="category-field">
         <label>Count / Number of Activities</label>
@@ -1168,7 +1413,9 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
         {(() => {
           const dynamicCount = 
-            (category.sl_no >= 8 && category.sl_no <= 10) || (category.sl_no >= 2 && category.sl_no <= 4)
+            (category.sl_no >= 8 && category.sl_no <= 10) || 
+            (category.sl_no >= 2 && category.sl_no <= 4) ||
+            ([13, 14, 15, 16, 17, 18].includes(category.sl_no))
               ? 0
               : (typeof localValues.count === 'number' ? localValues.count : 0) +
                 (typeof localValues.books === 'number' ? localValues.books : 0) +
@@ -1234,7 +1481,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           const fallbackDocs = entry?.proof_documents?.filter(d => d.item_index == null || d.item_index === undefined) || [];
           return (
             <>
-              {isDraft && ![1, 2, 3, 4].includes(category.sl_no) && (
+              {isDraft && ![1, 2, 3, 4, 13, 14, 15, 16, 17, 18].includes(category.sl_no) && (
                 <div className="category-upload">
                   <FileUpload
                     onFileSelect={(file) => onUpload(file)}

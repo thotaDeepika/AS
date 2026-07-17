@@ -112,7 +112,6 @@ export default function FileUpload({
             </div>
           ) : (
             <>
-              <span className="upload-icon">📎</span>
               <span className="upload-text">
                 <strong>Click to upload</strong> or drag and drop
               </span>
