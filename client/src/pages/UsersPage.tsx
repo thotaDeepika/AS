@@ -185,7 +185,7 @@ export default function UsersPage() {
     },
     {
       key: 'joining_date',
-      header: 'Joining Date',
+      header: 'Increment Date',
       render: (row: User) => row.joining_date ? new Date(row.joining_date).toLocaleDateString() : '—',
     },
     {
@@ -316,7 +316,7 @@ export default function UsersPage() {
                 />
               </div>
               <div className="form-group">
-                <label>Joining Date</label>
+                <label>Increment Date</label>
                 <input
                   type="date"
                   value={form.joining_date}

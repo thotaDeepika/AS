@@ -709,7 +709,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       const publications = localValues.publications || [];
 
       const handleAddPublication = () => {
-        const newPubs = [...publications, { doi: '', paperTitle: '', journalName: '', publicationDate: '', issn: '', journalCategory: '' }];
+        const newPubs = [...publications, { doi: '', paperTitle: '', journalName: '', publicationDate: '', issn: '', journalCategory: '', publisher: '', isbn: '', status: 'Published', expectedPublicationDate: '' }];
         updateField('publications', newPubs);
         updateField('count', newPubs.length);
       };
@@ -761,6 +761,18 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
             return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           };
           const publicationDateValue = parseCrossrefDate(data?.message);
+          const publicationYearValue = publicationDateValue ? publicationDateValue.split('-')[0] : '';
+
+          const isbnArray = data?.message?.ISBN || [];
+          let extractedIsbn = Array.isArray(isbnArray) && isbnArray.length > 0 ? isbnArray[0] : '';
+          extractedIsbn = extractedIsbn.replace(/http:\/\/id\.crossref\.org\/isbn\//, '');
+          const publisherValue = data?.message?.publisher || '';
+
+          const authors = data?.message?.author;
+          let authorDetailsValue = '';
+          if (Array.isArray(authors)) {
+            authorDetailsValue = authors.map((a: any) => `${a.given || ''} ${a.family || ''}`.trim()).join(', ');
+          }
 
           if (!title && !journal) {
             alert('DOI found but title/journal metadata is unavailable.');
@@ -771,14 +783,17 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           newPubs[index] = {
             ...newPubs[index],
             paperTitle: title || newPubs[index].paperTitle,
+            authorDetails: authorDetailsValue || newPubs[index].authorDetails,
             journalName: journal || newPubs[index].journalName,
-            publicationDate: publicationDateValue || newPubs[index].publicationDate,
+            publicationDate: (sl === 2 ? publicationDateValue : publicationYearValue) || newPubs[index].publicationDate,
             issn: extractedIssn || newPubs[index].issn,
+            publisher: publisherValue || newPubs[index].publisher,
+            isbn: extractedIsbn || newPubs[index].isbn,
           };
           updateField('publications', newPubs);
           updateField('count', newPubs.length);
 
-          alert('Paper metadata loaded from DOI. Please select the Journal Category.');
+          alert('Paper metadata loaded from DOI.');
         } catch (err: any) {
           alert(err.message || 'Unable to fetch metadata from DOI.');
         }
@@ -787,118 +802,318 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
       return (
         <div className="category-field publications-section">
           <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
-            Publications Details
+            {sl === 2 ? 'Publications Details' : 'Conference Details'}
           </label>
           <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
               <thead style={{ backgroundColor: '#f1f5f9' }}>
-                <tr>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>DOI</th>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Paper Title (Auto)</th>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Journal Name (Auto)</th>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Date</th>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>ISSN (Auto)</th>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Category (Q1-Q4)</th>
-                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
-                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
-                </tr>
+                {sl === 2 ? (
+                  <tr>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>DOI</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Paper Title (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Author Details (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Journal Name (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>
+                      <div title="Acceptance or Publication Date">Date</div>
+                    </th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>ISSN (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Category (Q1-Q4)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                    {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                  </tr>
+                ) : (
+                  <tr>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>DOI</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Paper Title (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Authors (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Conference Name (Auto)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Publisher</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>
+                      <div title="Acceptance or Publication Year">Year</div>
+                    </th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>ISBN</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>ISSN (if available)</th>
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                    {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {publications.length === 0 && (
                   <tr>
-                    <td colSpan={isDraft ? 8 : 7} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
-                      No publications added. Click "+ Add Publication" below to start.
+                    <td colSpan={isDraft ? (sl === 2 ? 9 : 10) : (sl === 2 ? 8 : 9)} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No {sl === 2 ? 'publications' : 'conferences'} added. Click "+ Add {sl === 2 ? 'Publication' : 'Conference'}" below to start.
                     </td>
                   </tr>
                 )}
                 {publications.map((pub: any, index: number) => (
                   <tr key={index}>
-                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '180px' }}>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <input
-                          type="text"
-                          value={pub.doi || ''}
-                          onChange={e => handlePublicationChange(index, 'doi', e.target.value)}
-                          disabled={!isDraft}
-                          placeholder="DOI"
-                          style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
-                        />
-                        {isDraft && (
-                          <button type="button" onClick={() => handleFetchDoi(pub.doi, index)} style={{ padding: '6px 8px', backgroundColor: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
-                            Fetch
-                          </button>
-                        )}
+                    {sl === 2 ? (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <select
+                            value={pub.status || 'Published'}
+                            onChange={e => handlePublicationChange(index, 'status', e.target.value)}
+                            disabled={!isDraft}
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          >
+                            <option value="Published">Published</option>
+                            <option value="Accepted">Accepted</option>
+                          </select>
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '180px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <input
+                              type="text"
+                              value={pub.doi || ''}
+                              onChange={e => handlePublicationChange(index, 'doi', e.target.value)}
+                              disabled={!isDraft}
+                              placeholder={pub.status === 'Accepted' ? 'Pending (Optional)' : 'DOI'}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                            {isDraft && pub.status !== 'Accepted' && (
+                              <button type="button" onClick={() => handleFetchDoi(pub.doi, index)} style={{ padding: '6px 8px', backgroundColor: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                Fetch
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.paperTitle || ''}
+                            onChange={e => handlePublicationChange(index, 'paperTitle', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Title"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.authorDetails || ''}
+                            onChange={e => handlePublicationChange(index, 'authorDetails', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Authors"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.journalName || ''}
+                            onChange={e => handlePublicationChange(index, 'journalName', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Journal"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                          <div style={{ marginBottom: '4px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#666' }}>{pub.status === 'Accepted' ? 'Acceptance Date' : 'Pub Date'}</div>
+                            <input
+                              type="date"
+                              value={pub.publicationDate || ''}
+                              onChange={e => handlePublicationChange(index, 'publicationDate', e.target.value)}
+                              disabled={!isDraft}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                          </div>
+                          {pub.status === 'Accepted' && (
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: '#666' }}>Expected Pub Date (Optional)</div>
+                              <input
+                                type="date"
+                                value={pub.expectedPublicationDate || ''}
+                                onChange={e => handlePublicationChange(index, 'expectedPublicationDate', e.target.value)}
+                                disabled={!isDraft}
+                                style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                              />
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                          {pub.status === 'Accepted' ? (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>Pending</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={pub.issn || ''}
+                              onChange={e => handlePublicationChange(index, 'issn', e.target.value)}
+                              disabled={!isDraft}
+                              placeholder="ISSN"
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                            />
+                          )}
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '120px', textAlign: pub.status === 'Accepted' ? 'center' : 'left' }}>
+                          {pub.status === 'Accepted' ? (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>Pending</span>
+                          ) : (
+                            <>
+                              <select
+                                value={pub.journalCategory || ''}
+                                onChange={e => handlePublicationChange(index, 'journalCategory', e.target.value)}
+                                disabled={!isDraft}
+                                style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff' }}
+                              >
+                                <option value="">Select</option>
+                                <option value="Q1">Q1</option>
+                                <option value="Q2">Q2</option>
+                                <option value="Q3">Q3</option>
+                                <option value="Q4">Q4</option>
+                                <option value="SCI">SCI</option>
+                                <option value="SCIE">SCIE</option>
+                                <option value="Scopus">Scopus</option>
+                                <option value="WoS">WoS</option>
+                                <option value="Other">Other</option>
+                              </select>
+                              {pub.issn && (
+                                <a 
+                                  href={`https://www.scimagojr.com/journalsearch.php?q=${encodeURIComponent(pub.issn)}&tip=issn`} 
+                                  target="_blank" 
+                                  rel="noreferrer" 
+                                  style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px', color: '#2563eb', textDecoration: 'underline' }}
+                                >
+                                  Verify on ScimagoJR
+                                </a>
+                              )}
+                            </>
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <select
+                            value={pub.status || 'Published'}
+                            onChange={e => handlePublicationChange(index, 'status', e.target.value)}
+                            disabled={!isDraft}
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          >
+                            <option value="Published">Published</option>
+                            <option value="Accepted">Accepted</option>
+                          </select>
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '180px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <input
+                              type="text"
+                              value={pub.doi || ''}
+                              onChange={e => handlePublicationChange(index, 'doi', e.target.value)}
+                              disabled={!isDraft}
+                              placeholder={pub.status === 'Accepted' ? 'Pending (Optional)' : 'DOI'}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                            {isDraft && pub.status !== 'Accepted' && (
+                              <button type="button" onClick={() => handleFetchDoi(pub.doi, index)} style={{ padding: '6px 8px', backgroundColor: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                Fetch
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.paperTitle || ''}
+                            onChange={e => handlePublicationChange(index, 'paperTitle', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Title"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.authorDetails || ''}
+                            onChange={e => handlePublicationChange(index, 'authorDetails', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Authors"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.journalName || ''}
+                            onChange={e => handlePublicationChange(index, 'journalName', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Conference"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input
+                            type="text"
+                            value={pub.publisher || ''}
+                            onChange={e => handlePublicationChange(index, 'publisher', e.target.value)}
+                            disabled={!isDraft}
+                            placeholder="Publisher"
+                            style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '100px' }}>
+                          <div style={{ marginBottom: '4px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#666' }}>{pub.status === 'Accepted' ? 'Acceptance Yr' : 'Pub Yr'}</div>
+                            <input
+                              type="number"
+                              value={pub.publicationDate || ''}
+                              onChange={e => handlePublicationChange(index, 'publicationDate', e.target.value)}
+                              disabled={!isDraft}
+                              placeholder="YYYY"
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                            />
+                          </div>
+                          {pub.status === 'Accepted' && (
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: '#666' }}>Expected Yr (Optional)</div>
+                              <input
+                                type="number"
+                                value={pub.expectedPublicationDate || ''}
+                                onChange={e => handlePublicationChange(index, 'expectedPublicationDate', e.target.value)}
+                                disabled={!isDraft}
+                                placeholder="YYYY"
+                                style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                              />
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                          {pub.status === 'Accepted' ? (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>Pending</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={pub.isbn || ''}
+                              onChange={e => handlePublicationChange(index, 'isbn', e.target.value)}
+                              disabled={!isDraft}
+                              placeholder="ISBN"
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff' }}
+                            />
+                          )}
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                          {pub.status === 'Accepted' ? (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>Pending</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={pub.issn || ''}
+                              onChange={e => handlePublicationChange(index, 'issn', e.target.value)}
+                              disabled={!isDraft}
+                              placeholder="ISSN"
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff' }}
+                            />
+                          )}
+                        </td>
+                      </>
+                    )}
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', backgroundColor: pub.status === 'Accepted' ? '#fff' : '#f8fafc', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '4px' }}>
+                        {pub.status === 'Accepted' ? 'Upload Acceptance Letter' : 'Upload Published Paper (Optional)'}
                       </div>
-                    </td>
-                    <td style={{ border: '1px solid #333', padding: '8px' }}>
-                      <input
-                        type="text"
-                        value={pub.paperTitle || ''}
-                        onChange={e => handlePublicationChange(index, 'paperTitle', e.target.value)}
-                        disabled={!isDraft}
-                        placeholder="Title"
-                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
-                      />
-                    </td>
-                    <td style={{ border: '1px solid #333', padding: '8px' }}>
-                      <input
-                        type="text"
-                        value={pub.journalName || ''}
-                        onChange={e => handlePublicationChange(index, 'journalName', e.target.value)}
-                        disabled={!isDraft}
-                        placeholder="Journal"
-                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
-                      />
-                    </td>
-                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
-                      <input
-                        type="date"
-                        value={pub.publicationDate || ''}
-                        onChange={e => handlePublicationChange(index, 'publicationDate', e.target.value)}
-                        disabled={!isDraft}
-                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                    </td>
-                    <td style={{ border: '1px solid #333', padding: '8px' }}>
-                      <input
-                        type="text"
-                        value={pub.issn || ''}
-                        onChange={e => handlePublicationChange(index, 'issn', e.target.value)}
-                        disabled={!isDraft}
-                        placeholder="ISSN"
-                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8fafc' }}
-                      />
-                    </td>
-                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '120px' }}>
-                      <select
-                        value={pub.journalCategory || ''}
-                        onChange={e => handlePublicationChange(index, 'journalCategory', e.target.value)}
-                        disabled={!isDraft}
-                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
-                      >
-                        <option value="">Select</option>
-                        <option value="Q1">Q1</option>
-                        <option value="Q2">Q2</option>
-                        <option value="Q3">Q3</option>
-                        <option value="Q4">Q4</option>
-                        <option value="SCI">SCI</option>
-                        <option value="SCIE">SCIE</option>
-                        <option value="Scopus">Scopus</option>
-                        <option value="WoS">WoS</option>
-                        <option value="Other">Other</option>
-                      </select>
-                      {pub.issn && (
-                        <a 
-                          href={`https://www.scimagojr.com/journalsearch.php?q=${encodeURIComponent(pub.issn)}&tip=issn`} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px', color: '#2563eb', textDecoration: 'underline' }}
-                        >
-                          Verify on ScimagoJR
-                        </a>
-                      )}
-                    </td>
-                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px' }}>
                       {(() => {
                         const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
                         if (doc) {
@@ -908,7 +1123,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
                                 📄 {doc.file_name}
                               </a>
                               {isDraft && (
-                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px' }} onClick={() => onRemoveProof(doc.id)}>
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
                                   ✕ Remove
                                 </button>
                               )}
@@ -991,25 +1206,219 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // Category 5: Books/Chapters (composite)
     if (sl === 5) {
+      const items = localValues.items || [];
+
+      const handleAddItem = () => {
+        const newItems = [...items, { bookType: 'Book', title: '', authors: '', publisher: '', isbn: '', publicationDate: '' }];
+        const booksCount = newItems.filter(i => i.bookType === 'Book').length;
+        const chaptersCount = newItems.filter(i => i.bookType === 'Book Chapter' || i.bookType === 'Edited Book').length;
+        updateField('items', newItems);
+        updateField('books', booksCount);
+        updateField('chapters', chaptersCount);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        const newItems = items.filter((_: any, i: number) => i !== index);
+        const booksCount = newItems.filter((i: any) => i.bookType === 'Book').length;
+        const chaptersCount = newItems.filter((i: any) => i.bookType === 'Book Chapter' || i.bookType === 'Edited Book').length;
+        updateField('items', newItems);
+        updateField('books', booksCount);
+        updateField('chapters', chaptersCount);
+      };
+
+      const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        const booksCount = newItems.filter(i => i.bookType === 'Book').length;
+        const chaptersCount = newItems.filter(i => i.bookType === 'Book Chapter' || i.bookType === 'Edited Book').length;
+        updateField('items', newItems);
+        updateField('books', booksCount);
+        updateField('chapters', chaptersCount);
+      };
+
       return (
-        <div className="category-fields-row">
-          <div className="category-field">
-            <label>Books Authored</label>
-            <input
-              type="number" min="0"
-              value={localValues.books ?? ''}
-              onChange={e => updateField('books', e.target.value === '' ? '' : parseInt(e.target.value))}
-              disabled={!isDraft} placeholder="0"
-            />
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            Books & Chapters Details
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Type</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Title</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Authors</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Publisher</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>ISBN</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Year</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 8 : 7} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No books/chapters added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {items.map((item: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                      <select
+                        value={item.bookType || 'Book'}
+                        onChange={e => handleItemChange(index, 'bookType', e.target.value)}
+                        disabled={!isDraft}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="Book">Book</option>
+                        <option value="Book Chapter">Book Chapter</option>
+                        <option value="Edited Book">Edited Book</option>
+                      </select>
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.title || ''}
+                        onChange={e => handleItemChange(index, 'title', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Title"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.authors || ''}
+                        onChange={e => handleItemChange(index, 'authors', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Authors"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.publisher || ''}
+                        onChange={e => handleItemChange(index, 'publisher', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Publisher"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.isbn || ''}
+                        onChange={e => handleItemChange(index, 'isbn', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="ISBN"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '100px' }}>
+                      <input
+                        type="number"
+                        value={item.publicationDate || ''}
+                        onChange={e => handleItemChange(index, 'publicationDate', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="YYYY"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', textAlign: 'center' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveItem(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="category-field">
-            <label>Book Chapters</label>
-            <input
-              type="number" min="0"
-              value={localValues.chapters ?? ''}
-              onChange={e => updateField('chapters', e.target.value === '' ? '' : parseInt(e.target.value))}
-              disabled={!isDraft} placeholder="0"
-            />
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddItem} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                fontWeight: 500
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem' }}>
+            <div>
+              <label style={{ fontSize: '0.85rem' }}>Books Authored:</label>
+              <input
+                type="number"
+                value={localValues.books ?? 0}
+                disabled={true}
+                style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '80px', marginLeft: '0.5rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.85rem' }}>Book Chapters:</label>
+              <input
+                type="number"
+                value={localValues.chapters ?? 0}
+                disabled={true}
+                style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '80px', marginLeft: '0.5rem' }}
+              />
+            </div>
           </div>
         </div>
       );
@@ -1017,40 +1426,372 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // Categories 6-7: Disclosures Filed / Patents Granted
     if (sl === 6 || sl === 7) {
+      const items = localValues.items || [];
+
+      const handleAddItem = () => {
+        const newItems = [...items, sl === 6 
+          ? { title: '', disclosureNo: '', filingDate: '' }
+          : { title: '', patentNo: '', country: '', grantDate: '' }
+        ];
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        const newItems = items.filter((_: any, i: number) => i !== index);
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        updateField('items', newItems);
+      };
+
       return (
-        <div className="category-field">
-          <label>Count</label>
-          <input
-            type="number" min="0"
-            value={localValues.count ?? ''}
-            onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
-            disabled={!isDraft} placeholder="0"
-          />
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            {sl === 6 ? 'Patent Disclosures Details' : 'Patents Granted Details'}
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>
+                    {sl === 6 ? 'Disclosure Title' : 'Patent Title'}
+                  </th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>
+                    {sl === 6 ? 'Disclosure No.' : 'Patent No.'}
+                  </th>
+                  {sl === 7 && (
+                    <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Country</th>
+                  )}
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>
+                    {sl === 6 ? 'Filing Date' : 'Grant Date'}
+                  </th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? (sl === 7 ? 6 : 5) : (sl === 7 ? 5 : 4)} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No entries added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {items.map((item: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.title || ''}
+                        onChange={e => handleItemChange(index, 'title', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder={sl === 6 ? 'Disclosure Title' : 'Patent Title'}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                      <input
+                        type="text"
+                        value={sl === 6 ? (item.disclosureNo || '') : (item.patentNo || '')}
+                        onChange={e => handleItemChange(index, sl === 6 ? 'disclosureNo' : 'patentNo', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder={sl === 6 ? 'Disclosure No.' : 'Patent No.'}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    {sl === 7 && (
+                      <td style={{ border: '1px solid #333', padding: '8px' }}>
+                        <input
+                          type="text"
+                          value={item.country || ''}
+                          onChange={e => handleItemChange(index, 'country', e.target.value)}
+                          disabled={!isDraft}
+                          placeholder="Country"
+                          style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        />
+                      </td>
+                    )}
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px' }}>
+                      <input
+                        type="date"
+                        value={sl === 6 ? (item.filingDate || '') : (item.grantDate || '')}
+                        onChange={e => handleItemChange(index, sl === 6 ? 'filingDate' : 'grantDate', e.target.value)}
+                        disabled={!isDraft}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', textAlign: 'center' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveItem(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddItem} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                fontWeight: 500
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem' }}>Total Count:</label>
+            <input
+              type="number"
+              value={localValues.count ?? 0}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '80px', marginLeft: '0.5rem' }}
+            />
+          </div>
         </div>
       );
     }
 
     // Categories 8-10: Research Guidance (UG/PG/PhD)
     if (sl >= 8 && sl <= 10) {
+      const items = localValues.items || [];
+
+      const handleAddItem = () => {
+        const newItems = [...items, { studentName: '', programme: '', researchTitle: '', role: '', status: 'Ongoing' }];
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        const newItems = items.filter((_: any, i: number) => i !== index);
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        updateField('items', newItems);
+      };
+
       return (
-        <div className="category-fields-row" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="category-field">
-            <label>Number of Batches/Students</label>
-            <input
-              type="number" min="0"
-              value={localValues.count ?? ''}
-              onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
-              disabled={!isDraft} placeholder="0"
-            />
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            Research Guidance Details
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Student Name</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Programme</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Research Title</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Role</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 7 : 6} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No entries added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {items.map((item: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.studentName || ''}
+                        onChange={e => handleItemChange(index, 'studentName', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Student Name"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.programme || ''}
+                        onChange={e => handleItemChange(index, 'programme', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Programme"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.researchTitle || ''}
+                        onChange={e => handleItemChange(index, 'researchTitle', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Research Title"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.role || ''}
+                        onChange={e => handleItemChange(index, 'role', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Role"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                      <select
+                        value={item.status || 'Ongoing'}
+                        onChange={e => handleItemChange(index, 'status', e.target.value)}
+                        disabled={!isDraft}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="Ongoing">Ongoing</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', textAlign: 'center' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveItem(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="category-field">
-            <label>Description / Details</label>
-            <textarea
-              value={localValues.description ?? ''}
-              onChange={e => updateField('description', e.target.value)}
-              disabled={!isDraft}
-              placeholder="Provide details about the batches/students guided..."
-              rows={3}
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddItem} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                fontWeight: 500
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem' }}>Total Count:</label>
+            <input
+              type="number"
+              value={localValues.count ?? 0}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '80px', marginLeft: '0.5rem' }}
             />
           </div>
         </div>
@@ -1059,15 +1800,195 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // Categories 11-12: Funded/Consulting Projects (currency slab)
     if (sl === 11 || sl === 12) {
+      const items = localValues.items || [];
+
+      const updateAmountLakhs = (newItems: any[]) => {
+        const total = newItems.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+        updateField('amount_lakhs', total);
+      };
+
+      const handleAddItem = () => {
+        const newItems = [...items, { title: '', agency: '', amount: '', role: '', duration: '' }];
+        updateField('items', newItems);
+        updateAmountLakhs(newItems);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        const newItems = items.filter((_: any, i: number) => i !== index);
+        updateField('items', newItems);
+        updateAmountLakhs(newItems);
+      };
+
+      const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        updateField('items', newItems);
+        if (field === 'amount') {
+          updateAmountLakhs(newItems);
+        }
+      };
+
       return (
-        <div className="category-field">
-          <label>Total Funding Amount (in Lakhs ₹)</label>
-          <input
-            type="number" min="0" step="0.01"
-            value={localValues.amount_lakhs ?? ''}
-            onChange={e => updateField('amount_lakhs', e.target.value === '' ? '' : parseFloat(e.target.value))}
-            disabled={!isDraft} placeholder="e.g. 5.5"
-          />
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            {sl === 11 ? 'Funded Projects Details' : 'Consulting Projects Details'}
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Project Title</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>{sl === 11 ? 'Funding Agency' : 'Client / Org'}</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Amount (Lakhs ₹)</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Role</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Duration / Status</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 7 : 6} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No projects added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {items.map((item: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.title || ''}
+                        onChange={e => handleItemChange(index, 'title', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Project Title"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.agency || ''}
+                        onChange={e => handleItemChange(index, 'agency', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder={sl === 11 ? 'Agency' : 'Client'}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '100px' }}>
+                      <input
+                        type="number"
+                        min="0" step="0.01"
+                        value={item.amount || ''}
+                        onChange={e => handleItemChange(index, 'amount', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="e.g. 5.5"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.role || ''}
+                        onChange={e => handleItemChange(index, 'role', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Role (e.g. PI)"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.duration || ''}
+                        onChange={e => handleItemChange(index, 'duration', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="e.g. 2 Years, Ongoing"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', textAlign: 'center' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveItem(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddItem} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                fontWeight: 500
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem' }}>Total Funding Amount (Lakhs ₹):</label>
+            <input
+              type="number"
+              value={localValues.amount_lakhs ?? 0}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '100px', marginLeft: '0.5rem' }}
+            />
+          </div>
         </div>
       );
     }
@@ -1336,63 +2257,368 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
     // Category 19: Institutional/Departmental Services (role select + count)
     if (sl === 19) {
+      const items = localValues.items || [];
+
+      const handleAddItem = () => {
+        const newItems = [...items, { description: '', level: 'Department' }];
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        const newItems = items.filter((_: any, i: number) => i !== index);
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        updateField('items', newItems);
+      };
+
       return (
-        <div className="category-fields-row">
-          <div className="category-field">
-            <label>Role</label>
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            Institutional/Departmental Services Details
+          </label>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ fontWeight: 'bold' }}>Primary Role (Applies to all entries for scoring)</label>
             <select
               value={localValues.role ?? ''}
               onChange={e => updateField('role', e.target.value)}
               disabled={!isDraft}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginTop: '0.5rem', maxWidth: '300px', display: 'block' }}
             >
               <option value="">Select role</option>
               <option value="coordinator">Coordinator</option>
               <option value="member">Member / Others</option>
             </select>
           </div>
-          <div className="category-field">
-            <label>Count / Number of Activities</label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Description / Responsibility</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Level</th>
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 4 : 3} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No entries added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {items.map((item: any, index: number) => (
+                  <tr key={index}>
+                    <td style={{ border: '1px solid #333', padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={item.description || ''}
+                        onChange={e => handleItemChange(index, 'description', e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="e.g. Responsible for Placement Data"
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                      <select
+                        value={item.level || 'Department'}
+                        onChange={e => handleItemChange(index, 'level', e.target.value)}
+                        disabled={!isDraft}
+                        style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="Department">Department</option>
+                        <option value="Institute">Institute</option>
+                      </select>
+                    </td>
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', textAlign: 'center' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveItem(index)} 
+                          style={{ 
+                            padding: '4px 8px', 
+                            backgroundColor: '#ff4d4f', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isDraft && (
+            <button 
+              type="button" 
+              onClick={handleAddItem} 
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                fontWeight: 500
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem' }}>Total Count:</label>
             <input
-              type="number" min="0"
-              value={localValues.count ?? ''}
-              onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
-              disabled={!isDraft} placeholder="0"
+              type="number"
+              value={localValues.count ?? 0}
+              disabled={true}
+              style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '80px', marginLeft: '0.5rem' }}
             />
           </div>
         </div>
       );
     }
 
-    // Category 23: Free text (any other contributions)
-    if (sl === 23) {
+    // Categories 20, 21, 22, 23 (Generic Tables)
+    if (sl >= 20 && sl <= 23) {
+      const items = localValues.items || [];
+
+      const handleAddItem = () => {
+        const newItem = sl === 20 ? { description: '', committee: '', duration: '' } :
+                        sl === 21 ? { awardName: '', agency: '', year: '', level: 'State' } :
+                        sl === 22 ? { activity: '', duration: '' } :
+                        { description: '', role: '', duration: '' }; // sl 23
+        const newItems = [...items, newItem];
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        const newItems = items.filter((_: any, i: number) => i !== index);
+        updateField('items', newItems);
+        updateField('count', newItems.length);
+      };
+
+      const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        updateField('items', newItems);
+      };
+
+      const getTitle = () => {
+        if (sl === 20) return 'Other Services Details';
+        if (sl === 21) return 'Awards and Honours Details';
+        if (sl === 22) return 'Professionalism / Team Spirit Details';
+        return 'Any Other Major Contributions Details';
+      };
+
       return (
-        <div className="category-field">
-          <label>Description (max 500 characters)</label>
-          <textarea
-            value={localValues.description ?? ''}
-            onChange={e => updateField('description', e.target.value.slice(0, 500))}
-            disabled={!isDraft}
-            placeholder="Describe your contribution..."
-            maxLength={500}
-            rows={3}
-          />
-          <span className="char-count">{(localValues.description || '').length}/500</span>
+        <div className="category-field publications-section">
+          <label style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+            {getTitle()}
+          </label>
+          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', border: '2px solid #333' }}>
+              <thead style={{ backgroundColor: '#f1f5f9' }}>
+                <tr>
+                  {sl === 20 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Description / Contribution</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Committee / Activity Name</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Date / Duration</th>
+                    </>
+                  )}
+                  {sl === 21 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Award Name</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Awarding Agency</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Year / Date</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Level</th>
+                    </>
+                  )}
+                  {sl === 22 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Description of Activity</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Date / Duration</th>
+                    </>
+                  )}
+                  {sl === 23 && (
+                    <>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Contribution Description</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Role</th>
+                      <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Date / Duration</th>
+                    </>
+                  )}
+                  <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>
+                  {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={isDraft ? 6 : 5} style={{ border: '1px solid #333', padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      No entries added. Click "+ Add Entry" below to start.
+                    </td>
+                  </tr>
+                )}
+                {items.map((item: any, index: number) => (
+                  <tr key={index}>
+                    {sl === 20 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.description || ''} onChange={e => handleItemChange(index, 'description', e.target.value)} disabled={!isDraft} placeholder="Description" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.committee || ''} onChange={e => handleItemChange(index, 'committee', e.target.value)} disabled={!isDraft} placeholder="Activity Name" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                          <input type="text" value={item.duration || ''} onChange={e => handleItemChange(index, 'duration', e.target.value)} disabled={!isDraft} placeholder="Date/Duration" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                      </>
+                    )}
+                    {sl === 21 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.awardName || ''} onChange={e => handleItemChange(index, 'awardName', e.target.value)} disabled={!isDraft} placeholder="Award Name" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.agency || ''} onChange={e => handleItemChange(index, 'agency', e.target.value)} disabled={!isDraft} placeholder="Agency" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '100px' }}>
+                          <input type="text" value={item.year || ''} onChange={e => handleItemChange(index, 'year', e.target.value)} disabled={!isDraft} placeholder="Year/Date" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                          <select value={item.level || 'State'} onChange={e => handleItemChange(index, 'level', e.target.value)} disabled={!isDraft} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }}>
+                            <option value="State">State</option>
+                            <option value="National">National</option>
+                            <option value="International">International</option>
+                          </select>
+                        </td>
+                      </>
+                    )}
+                    {sl === 22 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.activity || ''} onChange={e => handleItemChange(index, 'activity', e.target.value)} disabled={!isDraft} placeholder="Activity Description" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                          <input type="text" value={item.duration || ''} onChange={e => handleItemChange(index, 'duration', e.target.value)} disabled={!isDraft} placeholder="Date/Duration" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                      </>
+                    )}
+                    {sl === 23 && (
+                      <>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.description || ''} onChange={e => handleItemChange(index, 'description', e.target.value)} disabled={!isDraft} placeholder="Contribution Description" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px' }}>
+                          <input type="text" value={item.role || ''} onChange={e => handleItemChange(index, 'role', e.target.value)} disabled={!isDraft} placeholder="Role" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                        <td style={{ border: '1px solid #333', padding: '8px', minWidth: '130px' }}>
+                          <input type="text" value={item.duration || ''} onChange={e => handleItemChange(index, 'duration', e.target.value)} disabled={!isDraft} placeholder="Date/Duration" style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                        </td>
+                      </>
+                    )}
+                    <td style={{ border: '1px solid #333', padding: '8px', minWidth: '150px', textAlign: 'center' }}>
+                      {(() => {
+                        const doc = entry?.proof_documents?.find((d: any) => d.item_index === index);
+                        if (doc) {
+                          return (
+                            <div className="category-docs">
+                              <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                📄 {doc.file_name}
+                              </a>
+                              {isDraft && (
+                                <button type="button" className="btn-small" style={{ display: 'block', marginTop: '4px', padding: '2px 4px', background: '#fee2e2', color: '#ef4444', border: 'none', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', margin: '4px auto 0' }} onClick={() => onRemoveProof(doc.id)}>
+                                  ✕ Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        } else if (isDraft) {
+                          return (
+                            <FileUpload
+                              onFileSelect={(file) => onUpload(file, index)}
+                              uploading={uploading}
+                              maxFiles={1}
+                              uploadedFiles={[]}
+                            />
+                          );
+                        } else {
+                          return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No document</span>;
+                        }
+                      })()}
+                    </td>
+                    {isDraft && (
+                      <td style={{ border: '1px solid #333', padding: '8px', textAlign: 'center' }}>
+                        <button type="button" onClick={() => handleRemoveItem(index)} style={{ padding: '4px 8px', backgroundColor: '#ff4d4f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isDraft && (
+            <button type="button" onClick={handleAddItem} style={{ padding: '8px 16px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}>
+              + Add Entry
+            </button>
+          )}
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem' }}>Total Count:</label>
+            <input type="number" value={localValues.count ?? 0} disabled={true} style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', width: '80px', marginLeft: '0.5rem' }} />
+          </div>
         </div>
       );
     }
 
-    // Default: count-based input (categories 20-22)
-    return (
-      <div className="category-field">
-        <label>Count / Number of Activities</label>
-        <input
-          type="number" min="0"
-          value={localValues.count ?? ''}
-          onChange={e => updateField('count', e.target.value === '' ? '' : parseInt(e.target.value))}
-          disabled={!isDraft} placeholder="0"
-        />
-      </div>
-    );
+    return null;
   };
 
   return (
@@ -1413,9 +2639,7 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
         {(() => {
           const dynamicCount = 
-            (category.sl_no >= 8 && category.sl_no <= 10) || 
-            (category.sl_no >= 2 && category.sl_no <= 4) ||
-            ([13, 14, 15, 16, 17, 18].includes(category.sl_no))
+            category.sl_no >= 2
               ? 0
               : (typeof localValues.count === 'number' ? localValues.count : 0) +
                 (typeof localValues.books === 'number' ? localValues.books : 0) +
@@ -1477,36 +2701,24 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
             );
           }
 
-          // Fallback generic upload (for categories without count)
+          // Display any existing generic documents (legacy data fallback)
           const fallbackDocs = entry?.proof_documents?.filter(d => d.item_index == null || d.item_index === undefined) || [];
           return (
             <>
-              {isDraft && ![1, 2, 3, 4, 13, 14, 15, 16, 17, 18].includes(category.sl_no) && (
-                <div className="category-upload">
-                  <FileUpload
-                    onFileSelect={(file) => onUpload(file)}
-                    uploading={uploading}
-                    maxFiles={maxAttachments}
-                    uploadedFiles={
-                      fallbackDocs.map((doc: any) => ({
-                        id: doc.id,
-                        name: doc.file_name,
-                        size: doc.file_size,
-                        url: getFileUrl(doc.file_path)
-                      }))
-                    }
-                    onRemove={(idx) => onRemoveProof(fallbackDocs[idx].id)}
-                  />
-                </div>
-              )}
-
-
-              {!isDraft && fallbackDocs.length > 0 && (
-                <div className="category-docs">
+              {fallbackDocs.length > 0 && (
+                <div className="category-docs" style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                  <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#64748b' }}>Legacy Documents</h4>
                   {fallbackDocs.map((doc: any) => (
-                    <a key={doc.id} href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer' }}>
-                      📄 {doc.file_name}
-                    </a>
+                    <div key={doc.id} style={{ display: 'inline-flex', alignItems: 'center', marginRight: '0.5rem', marginBottom: '0.5rem' }}>
+                      <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer' }}>
+                        📄 {doc.file_name}
+                      </a>
+                      {isDraft && (
+                        <button className="btn-small" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.5rem', background: '#fee2e2', color: '#ef4444', border: 'none', cursor: 'pointer', borderRadius: '4px' }} onClick={() => onRemoveProof(doc.id)}>
+                          ✕ Remove
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
