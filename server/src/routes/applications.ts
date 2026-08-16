@@ -539,6 +539,14 @@ router.post('/:id/submit', authorize(Role.FACULTY), async (req: Request, res: Re
     if (application.status !== ApplicationStatus.DRAFT && application.status !== ApplicationStatus.REVERTED) throw new ValidationError('Application already submitted');
     if (!(application as any).faculty.designation) throw new ValidationError('Faculty designation is required for score calculation');
 
+    const totalCategoriesCount = await prisma.scoringCategory.count();
+    const filledEntriesCount = await prisma.categoryEntry.count({
+      where: { application_id: application.id }
+    });
+    if (filledEntriesCount < totalCategoriesCount) {
+      throw new ValidationError('Please fill and save all categories before submitting.');
+    }
+
     // Eligibility window check for submission
     if (!(application as any).faculty.joining_date) {
       throw new ValidationError('Your joining date is missing. Please contact Admin.');
@@ -653,6 +661,14 @@ router.get('/:id/score-preview', authorize(Role.FACULTY), async (req: Request, r
     if (!application) throw new NotFoundError('Application');
     if (application.faculty_id !== req.user!.id) throw new ForbiddenError();
     if (!(application as any).faculty.designation) throw new ValidationError('Designation required');
+
+    const totalCategoriesCount = await prisma.scoringCategory.count();
+    const filledEntriesCount = await prisma.categoryEntry.count({
+      where: { application_id: application.id }
+    });
+    if (filledEntriesCount < totalCategoriesCount) {
+      throw new ValidationError('Please fill and save all categories before previewing scores.');
+    }
 
     const { entries, totals } = await calculateApplicationScores(application.id, (application as any).faculty.designation);
     res.json({ success: true, data: { entries, totals } });

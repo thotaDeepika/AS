@@ -246,11 +246,42 @@ export default function ReviewsPage() {
                 </span>
               </div>
               <div className="entry-values">
-                {Object.entries(entry.raw_value || {}).map(([key, val]) => (
-                  <span key={key} className="entry-value-chip">
-                    {key.replace(/_/g, ' ')}: <strong>{String(val)}</strong>
-                  </span>
-                ))}
+                {Object.entries(entry.raw_value || {}).map(([key, val]) => {
+                  if (key.startsWith('item_desc_')) return null;
+
+                  let displayVal: React.ReactNode = String(val);
+                  let isBlock = false;
+
+                  if (Array.isArray(val)) {
+                    isBlock = true;
+                    if (val.length === 0) {
+                      displayVal = 'None';
+                    } else {
+                      displayVal = (
+                        <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {val.map((item, idx) => {
+                            if (typeof item !== 'object' || item === null) return <div key={idx}>[{idx + 1}] {String(item)}</div>;
+                            const parts = Object.entries(item)
+                              .filter(([k, v]) => !['status', 'proof_documents', 'id'].includes(k) && v !== '' && v != null)
+                              .map(([k, v]) => {
+                                const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                                return `${label}: ${v}`;
+                              });
+                            return <div key={idx} style={{ fontSize: '0.85em', background: 'rgba(0,0,0,0.03)', padding: '4px 8px', borderRadius: '4px' }}>[{idx + 1}] {parts.join(' | ')}</div>;
+                          })}
+                        </div>
+                      );
+                    }
+                  } else if (typeof val === 'object' && val !== null) {
+                    displayVal = JSON.stringify(val);
+                  }
+
+                  return (
+                    <span key={key} className="entry-value-chip" style={isBlock ? { display: 'block', width: '100%' } : {}}>
+                      {key.replace(/_/g, ' ')}: <strong style={isBlock ? { display: 'block', fontWeight: 'normal' } : {}}>{displayVal}</strong>
+                    </span>
+                  );
+                })}
               </div>
               {entry.proof_documents?.length > 0 && (
                 <div className="entry-docs">
@@ -320,46 +351,7 @@ export default function ReviewsPage() {
                   rows={4}
                 />
               </div>
-              <div className="form-group">
-                <label>Signature (Optional)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '0.5rem' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      const fileInput = document.getElementById('signature-upload-input');
-                      if (fileInput) (fileInput as HTMLInputElement).click();
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '8px 16px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    📷 Select Signature Image
-                  </button>
-                  <input
-                    id="signature-upload-input"
-                    type="file"
-                    accept="image/png, image/jpeg"
-                    onChange={e => setSignatureFile(e.target.files?.[0] || null)}
-                    style={{ display: 'none' }}
-                  />
-                  {signatureFile ? (
-                    <span style={{ color: 'var(--success)', fontSize: '13px', fontWeight: 500 }}>
-                      ✓ {signatureFile.name}
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-                      No image selected
-                    </span>
-                  )}
-                </div>
-              </div>
+
               <button className="btn-primary" onClick={handleSubmitReview} disabled={reviewing || !comments.trim()}>
                 {reviewing ? 'Submitting...' : 'Submit Review'}
               </button>

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { adminApi } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import VisualJsonEditor from '../components/VisualJsonEditor';
+import { CATEGORY_COLUMNS, type ColumnDef } from '../lib/constants';
+import { DynamicColumnEditor } from '../components/DynamicColumnEditor';
 
 interface Category {
   id: string;
@@ -67,6 +69,15 @@ export default function ScoringPage() {
         ...r,
         formula: r.formula ? JSON.parse(JSON.stringify(r.formula)) : {}
       })) : []
+    });
+
+    // Initialize mandatory_columns if missing for tabular categories
+    setEditForm((prev: any) => {
+      const config = { ...prev.input_config };
+      if (CATEGORY_COLUMNS[cat.sl_no] && !config.mandatory_columns) {
+        config.mandatory_columns = CATEGORY_COLUMNS[cat.sl_no].map(c => c.key);
+      }
+      return { ...prev, input_config: config };
     });
   };
 
@@ -227,14 +238,46 @@ export default function ScoringPage() {
                 <div className="detail-section">
                   <h5>Input Configuration</h5>
                   {editingCatId === cat.id ? (
-                    <div style={{ background: '#fff', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                      <VisualJsonEditor 
-                        data={editForm.input_config} 
-                        onChange={(newData) => setEditForm({ ...editForm, input_config: newData })} 
-                      />
+                    <div style={{ background: '#fff', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {CATEGORY_COLUMNS[cat.sl_no] && (
+                        <div>
+                          <h6 style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Dynamic Column Configuration</h6>
+                          <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>Add, edit, or remove columns. This completely customizes the application form for this category.</p>
+                          <DynamicColumnEditor
+                            columns={editForm.input_config?.columns || CATEGORY_COLUMNS[cat.sl_no]}
+                            onChange={(newCols) => {
+                              setEditForm({
+                                ...editForm,
+                                input_config: { ...editForm.input_config, columns: newCols }
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <h6 style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Advanced JSON Config</h6>
+                        <VisualJsonEditor 
+                          data={editForm.input_config} 
+                          onChange={(newData) => setEditForm({ ...editForm, input_config: newData })} 
+                        />
+                      </div>
                     </div>
                   ) : cat.input_config ? (
-                    <pre className="config-json">{JSON.stringify(cat.input_config, null, 2)}</pre>
+                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      {cat.input_config?.columns && (
+                        <div style={{ marginBottom: '1rem' }}>
+                          <h6 style={{ marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Configured Columns</h6>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {cat.input_config.columns.map((col: ColumnDef) => (
+                              <span key={col.key} style={{ background: col.is_mandatory ? '#e0f2fe' : '#f1f5f9', color: col.is_mandatory ? '#0369a1' : '#475569', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', border: '1px solid #cbd5e1' }}>
+                                {col.label} {col.is_mandatory ? '(Req)' : '(Opt)'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <pre className="config-json">{JSON.stringify(cat.input_config, null, 2)}</pre>
+                    </div>
                   ) : (
                     <p className="no-rules">No input configuration</p>
                   )}

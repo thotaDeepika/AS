@@ -186,7 +186,7 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   yPos += 60;
   if (yPos > doc.page.height - 100) { doc.addPage(); yPos = 50; }
   
-  doc.font('Helvetica-Bold').text('Signature of the Faculty', 50, yPos);
+  doc.font('Helvetica-Bold').text(`Name of the Faculty: ${app.faculty.name}`, 50, yPos);
   
   function drawSignatureBlock(title: string, review: any, startY: number) {
     if (startY > doc.page.height - 120) { doc.addPage(); startY = 50; }
@@ -196,27 +196,17 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
     if (review) {
       doc.font('Helvetica-Bold').text(`Decision: ${review.decision.replace(/_/g, ' ')}`, 50, startY + 35);
       doc.text(`Date: ${formatDate(review.reviewed_at)}`, 50, startY + 50);
+      doc.text(`Name: ${review.reviewer.name}`, 350, startY + 35);
       
-      const sigHash = `VERIFIED-${review.id.split('-')[0].toUpperCase()}`;
-      if (review.signature_path && fsSync.existsSync(review.signature_path)) {
-        doc.text('Signature:', 350, startY + 35);
-        try {
-          doc.image(review.signature_path, 350, startY + 50, { fit: [100, 30] });
-        } catch (e) {
-          doc.fill('#10b981').text(`[ VERIFIED ]\nID: ${sigHash}`, 350, startY + 50);
-          doc.fill('#000000');
-        }
-      } else {
-        const isPositive = ['RECOMMENDED', 'APPROVED'].includes(review.decision);
-        const color = isPositive ? '#10b981' : '#ef4444';
-        const icon = isPositive ? '[ APPROVED / VERIFIED ]' : '[ REVERTED ]';
-        doc.fill(color).text(`${icon}\nID: ${sigHash}`, 350, startY + 40);
-        doc.fill('#000000');
-      }
+      const isPositive = ['RECOMMENDED', 'APPROVED'].includes(review.decision);
+      const color = isPositive ? '#10b981' : '#ef4444';
+      const icon = isPositive ? '[ APPROVED / VERIFIED ]' : '[ REVERTED ]';
+      doc.fill(color).text(`${icon}`, 350, startY + 50);
+      doc.fill('#000000');
     } else {
       doc.font('Helvetica-Bold').text('Decision: _____________________', 50, startY + 35);
       doc.text('Date: _____________________', 50, startY + 50);
-      doc.text('Signature', 350, startY + 50);
+      doc.text('Name: _____________________', 350, startY + 50);
     }
     return startY + 80;
   }
@@ -273,7 +263,12 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   for (const entry of app.category_entries) {
     const rawVal = entry.raw_value as any || {};
     const isGuidance = entry.category.sl_no >= 8 && entry.category.sl_no <= 10;
-    const count = isGuidance ? 0 : (rawVal.count || 0) + (rawVal.books || 0) + (rawVal.chapters || 0);
+    
+    let count = (rawVal.count || 0) + (rawVal.books || 0) + (rawVal.chapters || 0);
+    // Backward compatibility: old guidance entries didn't have structured items
+    if (isGuidance && !rawVal.items) {
+      count = 0;
+    }
     const hasGlobalDocs = entry.proof_documents.some((d: any) => d.item_index == null);
 
     let detailsText = '';
@@ -286,16 +281,43 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
       detailsText += `${rawVal.description}\n`;
     }
 
-    for (let i = 0; i < count; i++) {
-      const itemDesc = rawVal[`item_desc_${i}`] || 'Item details missing';
-      detailsText += `${i + 1}. ${itemDesc}\n\n`;
+    // Attempt to find structured items
+    let structuredItems: any[] = [];
+    if (Array.isArray(rawVal.publications)) structuredItems = rawVal.publications;
+    else if (Array.isArray(rawVal.items)) structuredItems = rawVal.items;
+    else if (Array.isArray(rawVal.records)) structuredItems = rawVal.records;
+    else if (Array.isArray(rawVal.fci_entries)) structuredItems = rawVal.fci_entries;
+
+    const actualCount = structuredItems.length > 0 ? structuredItems.length : count;
+
+    if (structuredItems.length > 0) {
+      structuredItems.forEach((item, index) => {
+        if (rawVal[`item_desc_${index}`]) {
+          detailsText += `${index + 1}. ${rawVal[`item_desc_${index}`]}\n\n`;
+        } else {
+          // Generate dynamically
+          const keysToIgnore = ['status', 'proof_documents', 'id']; 
+          const parts = Object.entries(item)
+            .filter(([k, v]) => !keysToIgnore.includes(k) && v !== '' && v != null)
+            .map(([k, v]) => {
+                const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                return `${label}: ${v}`;
+            });
+          detailsText += `${index + 1}. ${parts.join(' | ')}\n\n`;
+        }
+      });
+    } else {
+      for (let i = 0; i < actualCount; i++) {
+        const itemDesc = rawVal[`item_desc_${i}`] || 'Item details missing';
+        detailsText += `${i + 1}. ${itemDesc}\n\n`;
+      }
     }
 
-    if (!detailsText) {
+    if (!detailsText || detailsText.trim() === '') {
       detailsText = '-\n';
     }
 
-    const hasProof = (count > 0 && entry.proof_documents.length > 0) || hasGlobalDocs;
+    const hasProof = (actualCount > 0 && entry.proof_documents.length > 0) || hasGlobalDocs;
     const appendixText = hasProof ? 'Y' : 'N';
 
     detailRows.push([
