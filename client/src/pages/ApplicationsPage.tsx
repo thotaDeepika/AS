@@ -870,34 +870,70 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           };
           const cleanDoi = normalizeDoi(doiValue);
           
-          const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(cleanDoi)}`);
-          if (!response.ok) {
-            throw new Error('DOI lookup failed. Please check the DOI and try again.');
+          let metadata: any = null;
+
+          // 1. Try CrossRef first
+          try {
+            const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(cleanDoi)}`);
+            if (response.ok) {
+              const data = await response.json();
+              const msg = data?.message;
+              if (msg) {
+                const isbnArray = msg.ISBN || [];
+                let extractedIsbn = Array.isArray(isbnArray) && isbnArray.length > 0 ? isbnArray[0] : (typeof msg.ISBN === 'string' ? msg.ISBN : '');
+                extractedIsbn = extractedIsbn.replace(/http:\/\/id\.crossref\.org\/isbn\//, '');
+                metadata = {
+                  title: Array.isArray(msg.title) ? msg.title[0] : (typeof msg.title === 'string' ? msg.title : ''),
+                  journal: Array.isArray(msg['container-title']) ? msg['container-title'][0] : (typeof msg['container-title'] === 'string' ? msg['container-title'] : ''),
+                  issn: Array.isArray(msg.ISSN) && msg.ISSN.length > 0 ? msg.ISSN[0] : (typeof msg.ISSN === 'string' ? msg.ISSN : ''),
+                  isbn: extractedIsbn,
+                  publisher: msg.publisher || '',
+                  dateParts: msg.published?.['date-parts']?.[0]
+                    || msg['published-print']?.['date-parts']?.[0]
+                    || msg.issued?.['date-parts']?.[0]
+                    || msg.created?.['date-parts']?.[0],
+                  authors: msg.author,
+                };
+              }
+            }
+          } catch {
+            // Fallback to doi.org
           }
-          const data = await response.json();
-          const title = Array.isArray(data?.message?.title) ? data.message.title[0] : '';
-          const journal = Array.isArray(data?.message?.['container-title']) ? data.message['container-title'][0] : '';
-          const issnArray = data?.message?.ISSN || [];
-          const extractedIssn = Array.isArray(issnArray) && issnArray.length > 0 ? issnArray[0] : '';
-          
-          const parseCrossrefDate = (message: any) => {
-            const dateParts = message?.published?.['date-parts']?.[0]
-              || message?.['published-print']?.['date-parts']?.[0]
-              || message?.issued?.['date-parts']?.[0]
-              || message?.created?.['date-parts']?.[0];
-            if (!Array.isArray(dateParts) || dateParts.length === 0) return '';
-            const [year, month = 1, day = 1] = dateParts;
-            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          };
-          const publicationDateValue = parseCrossrefDate(data?.message);
+
+          // 2. Fallback to universal doi.org content negotiation (works for mEDRA, DataCite, JaLC, etc.)
+          if (!metadata) {
+            const doiResponse = await fetch(`https://doi.org/${encodeURIComponent(cleanDoi)}`, {
+              headers: { Accept: 'application/vnd.citationstyles.csl+json' },
+            });
+            if (!doiResponse.ok) {
+              throw new Error('DOI lookup failed. Please check the DOI and try again.');
+            }
+            const csl = await doiResponse.json();
+            metadata = {
+              title: Array.isArray(csl.title) ? csl.title[0] : (csl.title || ''),
+              journal: Array.isArray(csl['container-title']) ? csl['container-title'][0] : (csl['container-title'] || ''),
+              issn: Array.isArray(csl.ISSN) ? csl.ISSN[0] : (csl.ISSN || ''),
+              isbn: Array.isArray(csl.ISBN) ? csl.ISBN[0] : (csl.ISBN || ''),
+              publisher: csl.publisher || '',
+              dateParts: csl.issued?.['date-parts']?.[0] || csl.published?.['date-parts']?.[0],
+              authors: csl.author,
+            };
+          }
+
+          const title = metadata?.title || '';
+          const journal = metadata?.journal || '';
+          const extractedIssn = metadata?.issn || '';
+          const extractedIsbn = metadata?.isbn || '';
+          const publisherValue = metadata?.publisher || '';
+
+          let publicationDateValue = '';
+          if (Array.isArray(metadata?.dateParts) && metadata.dateParts.length > 0) {
+            const [year, month = 1, day = 1] = metadata.dateParts;
+            publicationDateValue = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          }
           const publicationYearValue = publicationDateValue ? publicationDateValue.split('-')[0] : '';
 
-          const isbnArray = data?.message?.ISBN || [];
-          let extractedIsbn = Array.isArray(isbnArray) && isbnArray.length > 0 ? isbnArray[0] : '';
-          extractedIsbn = extractedIsbn.replace(/http:\/\/id\.crossref\.org\/isbn\//, '');
-          const publisherValue = data?.message?.publisher || '';
-
-          const authors = data?.message?.author;
+          const authors = metadata?.authors;
           let authorMatchFound = false;
           let authorDetailsValue = '';
           if (Array.isArray(authors)) {
