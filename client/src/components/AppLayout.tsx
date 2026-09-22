@@ -165,11 +165,8 @@ export default function AppLayout() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <h2 className="header-greeting" style={{ margin: 0 }}>
-                  Welcome, {['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) ? user.name : user.name.split(' ')[0]}
+                  Welcome, {user.name}
                 </h2>
-                {!['PRINCIPAL', 'ADMIN', 'REVIEWER', 'ACCOUNTS'].includes(user.role) && user.department?.name && (
-                  <span className="header-dept">{user.department.name}</span>
-                )}
               </div>
             </div>
           </div>

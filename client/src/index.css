@@ -149,6 +149,7 @@ code { font-family:'JetBrains Mono',monospace; background:var(--bg-elevated); pa
 .login-form { display:flex; flex-direction:column; gap:20px; }
 .form-group { display:flex; flex-direction:column; gap:6px; }
 .form-group label { font-size:13px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; }
+.form-group label .hint, .form-group label span { text-transform: none; font-weight: normal; }
 .input-wrapper { position:relative; display:flex; align-items:center; }
 .input-icon { position:absolute; left:14px; color:var(--text-muted); pointer-events:none; z-index:1; }
 .input-wrapper input { width:100%; padding:12px 14px 12px 44px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:15px; font-family:inherit; transition:border-color var(--transition), box-shadow var(--transition); outline:none; }
@@ -337,6 +338,7 @@ code { font-family:'JetBrains Mono',monospace; background:var(--bg-elevated); pa
 .file-remove:hover { color:var(--error); }
 .file-upload-container { display:flex; flex-direction:column; gap:8px; }
 .upload-limit-text { font-size:12px; color:var(--success); font-weight:500; }
+.upload-note { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); border-radius:4px; color:#d97706; font-size:11px; font-weight:600; text-transform:none; margin-top:2px; letter-spacing:0; }
 
 /* ─── Buttons ──────────────────────────────────────────────────────────────── */
 .btn-primary { padding:10px 20px; background:linear-gradient(135deg,#6366f1,#7c3aed); color:white; border:none; border-radius:var(--radius-sm); font-size:14px; font-weight:600; font-family:inherit; cursor:pointer; transition:all var(--transition); }

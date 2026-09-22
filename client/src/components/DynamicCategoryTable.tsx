@@ -53,7 +53,14 @@ export function DynamicCategoryTable({
                   {col.label} {col.is_mandatory && <span style={{ color: '#ef4444' }}>*</span>}
                 </th>
               ))}
-              {!hideUpload && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Document</th>}
+              {!hideUpload && (
+                <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>
+                  Document
+                  <span style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#d97706', textTransform: 'none', marginTop: '2px' }}>
+                    (1st page only)
+                  </span>
+                </th>
+              )}
               {isDraft && <th style={{ border: '1px solid #333', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>Action</th>}
             </tr>
           </thead>

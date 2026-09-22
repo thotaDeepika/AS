@@ -42,9 +42,11 @@ export async function calculateCategoryScore(
     // TEACHING — Category 1: FCI Score
     // ══════════════════════════════════════════════════════════════════════════
     case 1: {
-      const fci = Number(rawValue.fci_percentage || 0);
+      const hasEntries = Array.isArray(rawValue.fci_entries) && rawValue.fci_entries.length > 0;
+      const fci = (hasEntries || rawValue.fci_percentage !== undefined) ? Number(rawValue.fci_percentage || 0) : 0;
       let pct = 0;
-      if (fci >= 85) pct = 100;
+      if (fci <= 0) pct = 0;
+      else if (fci >= 85) pct = 100;
       else if (fci >= 80) pct = 90;
       else if (fci >= 75) pct = 80;
       else if (fci >= 70) pct = 70;

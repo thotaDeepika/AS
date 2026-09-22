@@ -228,10 +228,6 @@ export default function ApplicationsPage() {
   // Preview scores
   const handlePreviewScores = async () => {
     if (!application) return;
-    if (application.category_entries.length < categories.length) {
-      showToast('error', 'Please fill and save all categories before previewing scores.');
-      return;
-    }
     try {
       const res = await applicationsApi.scorePreview(application.id);
       setScoreTotals(res.data.data.totals);
@@ -243,10 +239,6 @@ export default function ApplicationsPage() {
   // Submit application
   const handleSubmit = async () => {
     if (!application || !['DRAFT', 'REVERTED'].includes(application.status)) return;
-    if (application.category_entries.length < categories.length) {
-      showToast('error', 'Please fill and save all categories before submitting.');
-      return;
-    }
     if (!confirm('Submit your application? You will not be able to edit it after submission.')) return;
     setSubmitting(true);
     try {
@@ -662,8 +654,12 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveFciEntry = (index: number) => {
         const newEntries = fciEntries.filter((_: any, i: number) => i !== index);
-        updateField('fci_entries', newEntries);
-        updateField('fci_percentage', calculateFciPercentage(newEntries));
+        const newPct = calculateFciPercentage(newEntries);
+        const newPayload = { ...localValues, fci_entries: newEntries, fci_percentage: newPct };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleFciEntryChange = (index: number, field: string, value: string) => {
@@ -844,8 +840,12 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemovePublication = (index: number) => {
         const newPubs = publications.filter((_: any, i: number) => i !== index);
-        updateField('publications', newPubs);
-        updateField('count', newPubs.filter(isItemFilled).length);
+        const newCount = newPubs.filter(isItemFilled).length;
+        const newPayload = { ...localValues, publications: newPubs, count: newCount };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handlePublicationChange = (index: number, field: string, value: string) => {
@@ -1048,9 +1048,11 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
         const filledItems = newItems.filter(isItemFilled);
         const booksCount = filledItems.filter((i: any) => i.bookType === 'Book').length;
         const chaptersCount = filledItems.filter((i: any) => i.bookType === 'Book Chapter' || i.bookType === 'Edited Book').length;
-        updateField('items', newItems);
-        updateField('books', booksCount);
-        updateField('chapters', chaptersCount);
+        const newPayload = { ...localValues, items: newItems, books: booksCount, chapters: chaptersCount, count: newItems.length };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleItemChange = (index: number, field: string, value: string) => {
@@ -1129,8 +1131,11 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveItem = (index: number) => {
         const newItems = items.filter((_: any, i: number) => i !== index);
-        updateField('items', newItems);
-        updateField('count', newItems.filter(isItemFilled).length);
+        const newPayload = { ...localValues, items: newItems, count: newItems.filter(isItemFilled).length };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleItemChange = (index: number, field: string, value: string) => {
@@ -1191,8 +1196,11 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveItem = (index: number) => {
         const newItems = items.filter((_: any, i: number) => i !== index);
-        updateField('items', newItems);
-        updateField('count', newItems.filter(isItemFilled).length);
+        const newPayload = { ...localValues, items: newItems, count: newItems.filter(isItemFilled).length };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleItemChange = (index: number, field: string, value: string) => {
@@ -1258,8 +1266,12 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveItem = (index: number) => {
         const newItems = items.filter((_: any, i: number) => i !== index);
-        updateField('items', newItems);
-        updateAmountLakhs(newItems);
+        const total = newItems.reduce((acc: number, curr: any) => acc + (parseFloat(curr.amount) || 0), 0);
+        const newPayload = { ...localValues, items: newItems, amount_lakhs: total };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleItemChange = (index: number, field: string, value: string) => {
@@ -1341,9 +1353,25 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveRecord = (index: number) => {
         const newRecords = records.filter((_: any, i: number) => i !== index);
-        updateField('records', newRecords);
-        updateField('count', newRecords.length);
-        if (sl === 14) updateDays(newRecords);
+        let days = localValues.days;
+        if (sl === 14) {
+          let totalDays = 0;
+          newRecords.forEach((r: any) => {
+            if (r.startDate && r.endDate) {
+              const s = new Date(r.startDate);
+              const e = new Date(r.endDate);
+              if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+                totalDays += Math.ceil(Math.abs(e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+              }
+            }
+          });
+          days = totalDays;
+        }
+        const newPayload = { ...localValues, records: newRecords, count: newRecords.length, ...(sl === 14 ? { days } : {}) };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleRecordChange = (index: number, field: string, value: string) => {
@@ -1425,8 +1453,11 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveItem = (index: number) => {
         const newItems = items.filter((_: any, i: number) => i !== index);
-        updateField('items', newItems);
-        updateField('count', newItems.length);
+        const newPayload = { ...localValues, items: newItems, count: newItems.length };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleItemChange = (index: number, field: string, value: string) => {
@@ -1503,8 +1534,11 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
 
       const handleRemoveItem = (index: number) => {
         const newItems = items.filter((_: any, i: number) => i !== index);
-        updateField('items', newItems);
-        updateField('count', newItems.length);
+        const newPayload = { ...localValues, items: newItems, count: newItems.length };
+        setLocalValues(newPayload);
+        setDirty(false);
+        dirtyRef.current = false;
+        onSave(newPayload);
       };
 
       const handleItemChange = (index: number, field: string, value: string) => {

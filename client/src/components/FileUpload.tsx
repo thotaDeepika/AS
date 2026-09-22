@@ -119,6 +119,9 @@ export default function FileUpload({
                 PDF only, max {maxSizeMB}MB
                 {maxFiles > 1 && ` (${allFiles.length}/${maxFiles} files)`}
               </span>
+              <span className="upload-note">
+                📌 Note: Upload only the 1st page of the document (not the full document).
+              </span>
             </>
           )}
           {error && <span className="upload-error">{error}</span>}
