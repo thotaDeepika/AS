@@ -36,9 +36,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-generate_a_secure_random_string_here_for_prod}
       JWT_EXPIRES_IN: 24h
       PORT: 3001
-      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      CLIENT_URL: ${CLIENT_URL:-http://172.1.58.10:8088}
       NODE_ENV: production
-      UPLOAD_DIR: ./uploads
+      UPLOAD_DIR: /app/server/uploads
       MAX_FILE_SIZE_MB: 10
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -60,7 +60,7 @@ services:
     depends_on:
       - server
     ports:
-      - '80:80'
+      - '8088:80'
 
 volumes:
   pgdata_prod:

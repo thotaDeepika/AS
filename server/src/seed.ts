@@ -281,26 +281,26 @@ async function main() {
     },
   ];
 
-  // Clear old data to avoid conflicts
-  console.log('🧹 Clearing old scoring data...');
-  await prisma.proofDocument.deleteMany({});
-  await prisma.categoryEntry.deleteMany({});
-  await prisma.scoringRule.deleteMany({});
-  await prisma.scoringCategory.deleteMany({});
-  console.log('✅ Old scoring data cleared');
+  // Scoring definitions are upserted, never deleted. This seed runs on every
+  // container start (see server/Dockerfile CMD); deleting categories/rules
+  // cascaded into category_entries and proof_documents and wiped submitted
+  // faculty data on every restart.
+  console.log('🔄 Upserting scoring definitions (existing data preserved)...');
 
   const createdCategories: Record<number, string> = {};
   for (const cat of categories) {
-    const c = await prisma.scoringCategory.create({
-      data: {
-        id: `cat-${cat.sl_no}`,
-        sl_no: cat.sl_no,
-        section: cat.section,
-        name: cat.name,
-        description: cat.description,
-        input_type: cat.input_type,
-        input_config: cat.input_config,
-      },
+    const categoryData = {
+      sl_no: cat.sl_no,
+      section: cat.section,
+      name: cat.name,
+      description: cat.description ?? null,
+      input_type: cat.input_type,
+      input_config: cat.input_config,
+    };
+    const c = await prisma.scoringCategory.upsert({
+      where: { id: `cat-${cat.sl_no}` },
+      update: categoryData,
+      create: { id: `cat-${cat.sl_no}`, ...categoryData },
     });
     createdCategories[cat.sl_no] = c.id;
   }
@@ -354,8 +354,15 @@ async function main() {
     const section = cat.section;
     for (const designation of designations) {
       const maxW = sectionMaxes[section][designation];
-      await prisma.scoringRule.create({
-        data: {
+      await prisma.scoringRule.upsert({
+        where: {
+          category_id_designation: {
+            category_id: createdCategories[cat.sl_no],
+            designation,
+          },
+        },
+        update: { max_weightage: maxW, formula: formulasBySlNo[cat.sl_no] },
+        create: {
           category_id: createdCategories[cat.sl_no],
           designation,
           max_weightage: maxW,

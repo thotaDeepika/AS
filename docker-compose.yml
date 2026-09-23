@@ -13,7 +13,7 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_dev:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d appraisal_db']
       interval: 5s
@@ -38,7 +38,7 @@ services:
       PORT: 3001
       CLIENT_URL: http://localhost:5173
       NODE_ENV: development
-      UPLOAD_DIR: ./uploads
+      UPLOAD_DIR: /app/server/uploads
       MAX_FILE_SIZE_MB: 10
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -48,7 +48,7 @@ services:
     ports:
       - '3001:3001'
     volumes:
-      - uploads:/app/uploads
+      - uploads_dev:/app/server/uploads
 
   # ─── Frontend Dev Server ────────────────────────────────────────────────────
   client:
@@ -65,5 +65,5 @@ services:
       - '5173:5173'
 
 volumes:
-  pgdata:
-  uploads:
+  pgdata_dev:
+  uploads_dev:

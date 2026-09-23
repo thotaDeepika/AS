@@ -45,8 +45,13 @@ const authLimiter = rateLimit({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
+// Serve uploaded files statically. Resolved from the same UPLOAD_DIR that the
+// upload write paths use, so the served directory can never drift from the
+// written one (it did: writes went to /app/uploads, this served
+// /app/server/uploads, so every uploaded file 404'd).
+const UPLOAD_ROOT = path.resolve(process.env.UPLOAD_DIR || './uploads');
+console.log(`📂 Serving uploads from ${UPLOAD_ROOT}`);
+app.use('/uploads', express.static(UPLOAD_ROOT));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 

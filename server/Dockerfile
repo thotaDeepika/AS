@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ WORKDIR /app/server
 RUN npm run build
 
 # Stage 2: Production
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -28,6 +28,14 @@ COPY server/package.json ./server/
 # Install only production dependencies
 ENV NODE_ENV=production
 RUN npm install --workspace=server --omit=dev --ignore-scripts
+
+# bcrypt is a native module and the install above runs with --ignore-scripts, so
+# its binding is never fetched. Fetch it explicitly (a musl prebuilt exists) and
+# fail the build loudly if it is still missing -- without it both the seed and
+# /api/auth/login crash at runtime.
+RUN npm rebuild bcrypt \
+    && node -e "require('bcrypt').hashSync('probe', 10); console.log('bcrypt binding ok')"
+
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Copy built code
