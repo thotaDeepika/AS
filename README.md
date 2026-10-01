@@ -1,6 +1,6 @@
 # 🎓 Ramaiah Institute of Technology - Faculty Appraisal System
 
-![License](https://img.shields.io/badge/License-Proprietary-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
 ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=flat&logo=node.js&logoColor=white)
@@ -196,8 +196,6 @@ This enterprise appraisal platform was engineered for **Ramaiah Institute of Tec
 
 ### 🎓 Faculty Mentors & Guidance
 * **Dr. Geetha J**
-* **Dr. Sowmya B J**
-
 ---
 
-*Property of Ramaiah Institute of Technology. Enterprise Faculty Performance Appraisal Solution.*
+*Developed and owned by **Manish S M** & **Deepika T**. Provided as a free institutional solution for Ramaiah Institute of Technology.*
