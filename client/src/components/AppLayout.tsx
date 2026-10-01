@@ -30,6 +30,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'PRINCIPAL', 'HOD', 'FACULTY', 'REVIEWER', 'ACCOUNTS'] },
+  { path: '/analytics', label: 'Analytics & Graphs', icon: '📈', roles: ['ADMIN', 'PRINCIPAL', 'HOD'] },
   { path: '/applications', label: 'My Application', icon: '📝', roles: ['FACULTY'] },
   { path: '/history', label: 'Submission History', icon: '📜', roles: ['FACULTY'] },
 
@@ -39,7 +40,7 @@ const navItems: NavItem[] = [
   { path: '/assign-reviewers', label: 'Assign Reviewers', icon: '🔀', roles: ['ADMIN'] },
   { path: '/principal-review', label: 'Principal Review', icon: '👔', roles: ['PRINCIPAL'] },
   { path: '/accounts', label: 'Accounts', icon: '💰', roles: ['ACCOUNTS'] },
-  { path: '/reports', label: 'Reports', icon: '📈', roles: ['ADMIN', 'PRINCIPAL', 'ACCOUNTS'] },
+  { path: '/reports', label: 'Reports', icon: '📋', roles: ['ADMIN', 'PRINCIPAL', 'ACCOUNTS'] },
   { path: '/audit-logs', label: 'Audit Logs', icon: '🔍', roles: ['ADMIN'] },
 ];
 

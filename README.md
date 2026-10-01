@@ -12,22 +12,103 @@ An enterprise-grade, full-stack web application architected to digitize and auto
 
 ---
 
-## 📖 Project Background & Motivation
+## 📂 Codebase & Project Directory Structure
 
-Historically, annual faculty performance appraisals have relied on manual, paper-heavy workflows. Faculty members had to physically compile massive portfolios containing proof of teaching metrics, research publications, patents, and institutional service. These physical files were then manually routed through the Head of Department (HOD), an external Reviewer, the Principal, and finally the Accounts department for salary increments. This process was prone to calculation errors, physical document loss, and significant administrative delays.
-
-**The RIT Faculty Appraisal System was developed to completely digitize this pipeline.**
-
-### The Core Objectives
-1. **Paperless Submissions:** Faculty can input all their achievements across 23 distinct academic categories (such as Q1/Q2 journal publications, patents, funded projects, and institutional service) directly into an intuitive web interface and upload PDF proofs.
-2. **Automated Dynamic Scoring:** The system replaces error-prone manual calculations. The backend engine automatically calculates performance scores by applying institutionally defined rubrics, automatically adjusting weightages based on the faculty member's designation (Assistant Professor, Associate Professor, or Professor).
-3. **Rigid Verification Workflow:** A strict, role-based state machine guarantees that an application cannot bypass any required level of scrutiny. It must pass through the HOD, a designated Reviewer, and the Principal before reaching the Accounts team.
+```
+Appraisal System/
+├── DATA/                                # Legacy reference calculation rules
+│   ├── cal.txt                          # 1:1 Legacy Capping & Bonus overflow algorithm
+│   └── source.txt                       # Legacy appraisal system source reference
+└── Software/                            # Production Web Application Base
+    ├── client/                          # React + TypeScript Frontend Application
+    │   ├── src/
+    │   │   ├── components/              # UI Components (DataTable, ScoreCard, DynamicCategoryTable, etc.)
+    │   │   │   ├── AppLayout.tsx        # Responsive Role-Gated Sidebar & Navbar Layout
+    │   │   │   ├── DynamicCategoryTable.tsx # Tabular Category Entry & Dynamic Field Rendering
+    │   │   │   ├── DynamicColumnEditor.tsx  # Admin Dynamic Column & Auto-Slug Mapping Tool
+    │   │   │   ├── FileUpload.tsx       # Quota-Aware Drag-and-Drop Proof Uploader
+    │   │   │   └── VisualJsonEditor.tsx # Interactive Formula & Config Tree Editor
+    │   │   ├── context/
+    │   │   │   └── AuthContext.tsx      # Global Authentication State & Session Provider
+    │   │   ├── lib/
+    │   │   │   ├── api.ts               # Axios Client API Service Methods
+    │   │   │   └── constants.ts         # Institutional Category Column Specifications
+    │   │   ├── pages/                   # Application Views
+    │   │   │   ├── AnalyticsPage.tsx    # Executive Analytics, Filters & 5 Visual Chart Types
+    │   │   │   ├── ApplicationsPage.tsx # Faculty Self-Assessment & Entry Form
+    │   │   │   ├── AuditLogsPage.tsx    # Security Compliance Timeline & Detail Inspector
+    │   │   │   ├── DashboardPage.tsx    # Role-Aware Executive Workspace & KPI Cards
+    │   │   │   ├── LoginPage.tsx        # Authenticated Portal Login
+    │   │   │   ├── PrincipalDashboardPage.tsx # Institutional Approval & Review Portal
+    │   │   │   ├── ReviewsPage.tsx      # Peer & HOD Review Workspace
+    │   │   │   └── ScoringPage.tsx      # Admin Scoring Config & System Defaults Reversion
+    │   │   ├── App.tsx                  # React Router Protected DOM Map
+    │   │   ├── index.css                # Enterprise Dark/Light Vanilla CSS Design System
+    │   │   └── main.tsx                 # Frontend Entrypoint
+    │   └── package.json
+    ├── server/                          # Express.js + TypeScript Backend Application
+    │   ├── prisma/
+    │   │   └── schema.prisma            # PostgreSQL Database Schema & Enums
+    │   ├── src/
+    │   │   ├── jobs/
+    │   │   │   └── appraisalReminder.js # Scheduled Cron Reminders & Email Notifications
+    │   │   ├── lib/
+    │   │   │   ├── email.ts             # Async Nodemailer Transport Service
+    │   │   │   ├── scoreEngine.ts       # 1:1 Legacy Scoring & Bonus Overflow Engine
+    │   │   │   └── upload.ts            # Magic Byte Header & Rate-Limited Upload Handler
+    │   │   ├── middleware/
+    │   │   │   ├── auth.ts              # JWT Token Verification & RBAC Authorization
+    │   │   │   └── errorHandler.ts      # Centralized Error Formatting Handler
+    │   │   ├── routes/                  # API Endpoint Routers
+    │   │   │   ├── admin.ts             # Scoring Config, Defaults Revert & User Ops
+    │   │   │   ├── analytics.ts         # Role-Scoped Analytics API Engine
+    │   │   │   ├── applications.ts      # Application CRUD & Workflow Pipeline
+    │   │   │   ├── auth.ts              # Authentication & Password Changes
+    │   │   │   ├── reports.ts           # PDF & Excel Report Generator
+    │   │   │   └── reviews.ts           # Peer/HOD Review & Signature Uploads
+    │   │   └── index.ts                 # Express Server Initialization & Rate Limiters
+    │   └── package.json
+    ├── docs/                            # Remedial Documentation & Technical Specifications
+    ├── docker-compose.yml               # Local Development Container Cluster
+    ├── docker-compose.prod.yml          # Production Multi-Stage Nginx Container Cluster
+    ├── .env                             # Environment Configuration Parameters
+    └── README.md                        # Master Project Documentation
+```
 
 ---
 
-## 🌟 Key Features
+## ⚙️ Major Technical Environment Variables (`.env`)
 
-### 🔄 Multi-Stage Lifecycle Engine
+The system exposes technical configuration options in `.env`:
+
+| Variable Name | Default Value | Description |
+| :--- | :--- | :--- |
+| **`PORT`** | `3001` | Express backend server listener port |
+| **`NODE_ENV`** | `development` | Runtime environment (`development`, `production`, `test`) |
+| **`CLIENT_URL`** | `http://localhost:5173` | Allowed CORS origin URL for the React SPA |
+| **`DATABASE_URL`** | `postgresql://...:6543/...` | PgBouncer pooled connection string for runtime queries |
+| **`DIRECT_URL`** | `postgresql://...:5432/...` | Direct PostgreSQL connection string for Prisma migrations |
+| **`JWT_SECRET`** | `appraisal-rit-jwt-...` | Cryptographic secret key for signing user sessions |
+| **`JWT_EXPIRES_IN`** | `24h` | Validity duration of session tokens |
+| **`UPLOAD_DIR`** | `./uploads` | Storage directory path for uploaded proof documents |
+| **`MAX_FILE_SIZE_MB`** | `10` | Maximum size allowed per individual uploaded file in MB |
+| **`UPLOAD_QUOTA_MB`** | `50` | Maximum cumulative upload quota per application in MB |
+| **`MAX_FILES_PER_APP`** | `40` | Maximum number of attached proof files per application |
+| **`AUTH_RATE_LIMIT_MAX`** | `100` | Max login attempts per IP window (15 minutes) |
+| **`UPLOAD_RATE_LIMIT_MINS`** | `15` | Upload rate limiter evaluation window in minutes |
+| **`UPLOAD_RATE_LIMIT_MAX_REQ`** | `30` | Max file upload requests allowed per IP window |
+| **`ENABLE_AUTO_REMINDERS`** | `"true"` | Enable scheduled background cron reminders |
+| **`SMTP_HOST`** | `smtp.gmail.com` | SMTP host server for email notifications |
+| **`SMTP_PORT`** | `587` | SMTP server port |
+| **`SMTP_USER`** | `admin_appraisal@...` | SMTP authentication username |
+| **`SMTP_PASS`** | `[App Password]` | SMTP authentication app password |
+| **`EMAIL_FROM`** | `"RIT Appraisal System" <...>` | Sender header formatted email string |
+
+---
+
+## 🌟 Core System Capabilities
+
+### 🔄 Multi-Stage Lifecycle Pipeline
 The platform encodes the institution's official appraisal policies into a rigid state machine:
 ```mermaid
 graph LR
@@ -41,138 +122,82 @@ graph LR
     B -.->|Revert to Edit| A
     F -.->|Revert/Reject to Admin| E
 ```
-Each transition enforces strict Role-Based Access Control (RBAC), ensuring that applications can only be advanced or reverted by the legally authorized role for that specific stage.
-- **`REVERTED` State:** If HOD or Admin rejects/reverts an application during review, it goes to the `REVERTED` status, allowing the faculty to edit and resubmit.
-- **Faculty Privacy & Status Masking:** Internal review details, including HOD/Reviewer/Principal comments, scores, and signatures, are hidden from the Faculty view in both the web portal and the generated PDF report. Faculty members only see `DRAFT`, `SUBMITTED`, or `REVERTED` stages.
 
-### 🛡️ Role-Based Architecture (RBAC)
-The system is divided into 6 distinct organizational roles, each featuring personalized dashboards and restricted data access matrices:
-- **👨‍🏫 Faculty:** Draft self-assessments within a strictly enforced 60-day window (90 to 30 days before their joining date anniversary). Populate scoring metrics, securely upload PDF proofs, and monitor application progress.
-- **🧑‍💼 HOD (Head of Department):** Evaluate departmental applications, append official comments, and issue primary recommendations or reversions.
-- **🕵️ Reviewer:** External domain experts who perform secondary audits on assigned applications, with the ability to dynamically adjust awarded scores based on proof validity.
-- **🏛️ Principal:** The ultimate approving authority with access to high-level departmental analytics, consolidated scoring matrices, and final decision-making power.
-- **⚙️ Admin:** Master system controllers managing user provisioning, dynamic scoring configurations, reviewer assignments, overriding application windows, and complete audit trail oversight.
-- **💼 Accounts:** Financial processors authorized to view frozen, approved applications to trigger salary increments and institutional accounting. Accounts Dashboard dynamically resolves missing historical timestamps (`frozen_at` and `sent_to_accounts_at`) via the Audit Log table to prevent data mismatch without database migration.
+### 📊 1:1 Legacy Scoring & Overflow Algorithm (`bonusS`)
+- **1:1 Legacy Alignment:** Implements the exact category calculations, section caps, and bonus overflow logic (`bonusS`) from `DATA/cal.txt`.
+- **Core Cap at 100:** Total Core Score is capped at 100 (`if (totalScore > 100) totalScore = 100;`).
+- **Bonus Overflow:** Surplus research scores spill over into a distinct `* Bonus Score` (`Final Score = Total Score + Bonus Score`).
 
-### 📊 Dynamic Scoring & Analytics Engine
-A sophisticated backend calculation engine evaluates faculty inputs against institutional rubrics:
-- **Comprehensive Metrics:** 23 distinct categories across 3 sections (Teaching, Research, Service). These range from FCI (Faculty Course Index) scores to PhD guidance and consulting projects.
-- **Designation-Aware Multipliers:** Automatically scales base multipliers (Teaching, Research, Service) according to the faculty member's designation (Assistant Professor, Associate Professor, or Professor) as specified in the official guidelines.
-- **Uncapped, Additive Model:** Evaluates individual items and sections as pure additive scores (e.g. `Score = Multiplier × Percentage`), with no artificial ceilings, and has removed visual denominators and progress bars from the UI.
-- **Real-time Evaluation & Admin Control:** Scores are instantly calculated according to the dynamic `ScoringRules` tables in the database. The Admin has full control to edit the JSON input configuration schemas and scoring formulas directly from the UI without requiring code deployments.
+### 📈 Modern Executive Analytics & 5 Interactive Chart Types
+The `/analytics` dashboard provides role-scoped insights with 5 distinct visual chart engines:
+1. **🍩 Proportional Donut Ring Chart:** Displays score distribution brackets (`<50`, `50-64.9`, `65-79.9`, `80-94.9`, `95-100`, `>100 Bonus`) with center metric callouts.
+2. **📊 Department Performance Column Comparison:** Multi-bar vertical columns comparing Teaching, Research, Service, and Bonus averages per department.
+3. **🥞 Stacked Cadre Breakdown Bar:** Proportional horizontal composition bar comparing Teaching, Research, Service, and Bonus shares per designation cadre.
+4. **📉 Smooth Spline Area Trend:** Multi-year growth curves mapping Total Score vs Final Score trajectories.
+5. **🎯 Target Compliance Radial Gauges:** Circular gauges comparing average achieved scores against section cap ceilings.
+* **Auto-Refresh Feature:** Includes a **60-Second Auto-Refresh Timer** toggle and a **"↺ Reset Filters"** button.
 
-### 📄 Advanced Reporting & Document Generation
-- **Official 2-Part PDF Portfolios:** Automatically compiles a high-fidelity PDF report featuring an Official Summary Form and a Detailed Annexure. Automatically injects verified digital signatures from the HOD, Reviewer, and Principal (internal review components are hidden when viewed by Faculty role).
-- **Consolidated Excel Exports:** Generates multi-sheet Excel workbooks detailing institutional and departmental summaries with active resolved scores (including reviewer overrides), empowering the Principal and Accounts teams.
-- **Background Mail Processing:** Email notifications and PDF report dispatches run asynchronously in background tasks, ensuring instant HTTP responses and zero frontend submit-button freeze.
+### ⚙️ Scoring Configuration & Default Reversion Options
+- **Dynamic Field Customization:** Admins can edit category labels, descriptions, and dynamic column schemas with automatic slug mapping (`✨ Auto Mapping Enabled`).
+- **Global Revert ("↺ Revert All to Defaults"):** Single-click action to reset all 23 categories and 69 designation scoring rules back to original system defaults.
+- **Per-Category / Field Revert ("↺ Default"):** Revert individual categories or sub-fields back to system defaults.
 
-### 🎨 Premium Visual Elements
-- **Custom Signature Selector:** Replaced default browser-native file inputs with a styled action button trigger, providing a clear visual status state (with green verification checkmarks) for uploaded signature assets.
-
-### 🔒 Security & Production Resilience
-- **Cryptographic Authentication:** JWT-based stateless authentication with `bcrypt` password hashing.
-- **Hardened Backend:** Express backend secured with `helmet` (HTTP headers), `express-rate-limit` (brute-force prevention), and `compression` (optimized payloads).
-- **Immutable Audit Trail:** Every state transition and administrative action is permanently logged with IP tracking, JSON payload snapshots, and timestamping.
-- **Nginx Reverse Proxy:** Production builds serve the React SPA via Nginx Alpine, seamlessly routing API calls and uploads to the secure backend container.
-
----
-
-## 🛠️ Technology Stack
-
-**Frontend Architecture:**
-- **Core:** React 18, TypeScript, Vite
-- **Styling:** Custom Vanilla CSS Design System with native Dark/Light mode support.
-- **Routing & State:** React Router DOM, Context API.
-
-**Backend Infrastructure:**
-- **Server:** Node.js, Express.js, TypeScript
-- **Database:** PostgreSQL
-- **ORM:** Prisma (Type-safe database client)
-- **Utilities:** `pdfkit` (Report Generation), `exceljs` (Analytics Exports), `multer` (File handling), `helmet`, `express-rate-limit`.
-
-**DevOps & Deployment:**
-- Docker & Docker Compose (Multi-stage builds, Nginx alpine, Node alpine).
+### 🔍 Security Compliance Audit Logs
+- **Compact Summary Rows:** Shows ONLY essential details (Event Icon Badge, Target Entity, Actor Name/Role, Formatted Timestamp).
+- **Expandable Detail Inspector:** Click any log row to inspect context metadata chips, IP tracking, and syntax-highlighted payload JSON.
 
 ---
 
 ## 🚀 Deployment Guide
 
 ### Prerequisites
-- **Docker** and **Docker Compose** installed on the host machine.
-- Git.
+- Docker & Docker Compose
+- Node.js 18+ (for local CLI development)
 
-### 1. 🌍 Production Deployment (Recommended)
+### 1. 🌍 Production Deployment (Docker Compose)
+```bash
+# 1. Clone repository
+git clone https://github.com/27-MANISH/appraisal-system.git
+cd appraisal-system/Software
 
-The production setup uses a highly optimized multi-stage Docker build. The frontend is built into static HTML/JS/CSS and served blazingly fast by **Nginx**, which also acts as a secure reverse proxy for the Node backend.
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/27-MANISH/appraisal-system.git
-   cd appraisal-system
-   ```
-
-2. **Configure Environment Variables**
-   ```bash
-   cp .env.example .env
-   # Open .env and set SECURE passwords, JWT secrets, and CLIENT_URL=http://your-domain.com
-   ```
-
-3. **Spin up the Production Stack**
-   ```bash
-   docker-compose -f docker-compose.prod.yml up -d --build
-   ```
-   *This single command builds the frontend via Vite, configures Nginx, installs backend production dependencies, runs Prisma migrations, seeds the database with the initial Admin account, and starts the container cluster.*
-
-4. **Access the Application**
-   - **Frontend UI:** `http://localhost:80` (or your domain/IP)
-   - **Default Admin Login:** `admin@rit.edu` / `Admin@123`
+# 2. Spin up containers
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+- **Application URL:** `http://localhost:80`
+- **Default Admin Account:** `admin_appraisal@msrit.edu` / `Admin@MSRIT2026`
 
 ### 2. 💻 Local Development
+```bash
+cd Software
 
-For active development, hot-reloading, and manual database management.
+# Start PostgreSQL Database
+docker-compose up -d db
 
-1. **Start the Development Database & Services**
-   ```bash
-   docker-compose up -d db
-   ```
+# Terminal 1: Backend Server (Port 3001)
+cd server
+npx prisma db push
+npm run seed
+npm run dev
 
-2. **Install Local Dependencies**
-   ```bash
-   npm install
-   cd server && npm install && cd ..
-   cd client && npm install && cd ..
-   ```
-
-3. **Run the Application**
-   Open two terminals:
-   
-   *Terminal 1 (Backend - Port 3001)*
-   ```bash
-   cd server
-   npx prisma db push
-   npm run seed
-   npm run dev
-   ```
-
-   *Terminal 2 (Frontend - Port 5173)*
-   ```bash
-   cd client
-   npm run dev
-   ```
-
----
-
-## 🏗️ Docker Architecture Diagram
-
-```mermaid
-graph TD
-    User([Browser / User]) -->|Port 80| Nginx[Nginx Container\nappraisal-client-prod]
-    Nginx -->|Serves| Static[Static React Assets]
-    Nginx -->|/api/* Proxy| Node[Node.js Container\nappraisal-server-prod]
-    Nginx -->|/uploads/* Proxy| Node
-    Node <-->|Port 5432| DB[(PostgreSQL Container\nappraisal-db-prod)]
+# Terminal 2: Frontend App (Port 5173)
+cd client
+npm run dev
 ```
 
 ---
 
-*Property of Ramaiah Institute of Technology. Developed for the digital transformation of faculty appraisal pipelines.*
+## 👥 Development Team & Faculty Guidance
+
+This enterprise appraisal platform was engineered for **Ramaiah Institute of Technology** as a free institutional solution by:
+
+### 💻 Lead Developers
+* **[Manish S M](https://www.linkedin.com/in/sm-manish/)**
+* **[Deepika T](https://www.linkedin.com/in/deepikaprofile/)**
+
+### 🎓 Faculty Mentors & Guidance
+* **Dr. Geetha J**
+* **Dr. Sowmya B J**
+
+---
+
+*Property of Ramaiah Institute of Technology. Enterprise Faculty Performance Appraisal Solution.*

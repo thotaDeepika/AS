@@ -20,7 +20,7 @@ interface FileUploadProps {
 
 export default function FileUpload({
   onFileSelect,
-  accept = '.pdf',
+  accept = '.pdf,.png,.jpg,.jpeg,.webp',
   maxSizeMB = 10,
   maxFiles = 1,
   uploading = false,
@@ -41,8 +41,9 @@ export default function FileUpload({
 
   const validateAndSelect = useCallback((file: File) => {
     setError('');
-    if (accept === '.pdf' && file.type !== 'application/pdf') {
-      setError('Only PDF files are allowed');
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type) && !file.type.startsWith('image/')) {
+      setError('Only PDF files or Images (JPG, PNG, WEBP) are allowed');
       return;
     }
     if (file.size > maxSizeMB * 1024 * 1024) {
@@ -116,7 +117,7 @@ export default function FileUpload({
                 <strong>Click to upload</strong> or drag and drop
               </span>
               <span className="upload-hint">
-                PDF only, max {maxSizeMB}MB
+                PDF or Image (JPG, PNG, WEBP), max {maxSizeMB}MB
                 {maxFiles > 1 && ` (${allFiles.length}/${maxFiles} files)`}
               </span>
               <span className="upload-note">

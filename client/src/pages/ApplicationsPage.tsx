@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api, { applicationsApi, getFileUrl } from '../lib/api';
@@ -32,6 +32,7 @@ interface Application {
   academic_year: string;
   status: string;
   total_score: number | null;
+  bonus_score?: number | null;
   final_score: number | null;
   submitted_at: string | null;
   created_at: string;
@@ -83,6 +84,24 @@ export default function ApplicationsPage() {
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [scoreTotals, setScoreTotals] = useState<any>(null);
   const [historyApps, setHistoryApps] = useState<any[]>([]);
+
+  const totalUploadedBytes = useMemo(() => {
+    let total = 0;
+    application?.category_entries?.forEach((entry: any) => {
+      entry.proof_documents?.forEach((doc: any) => {
+        total += Number(doc.file_size || 0);
+      });
+    });
+    return total;
+  }, [application]);
+
+  const totalUploadedFiles = useMemo(() => {
+    let count = 0;
+    application?.category_entries?.forEach((entry: any) => {
+      count += entry.proof_documents?.length || 0;
+    });
+    return count;
+  }, [application]);
   const [expandedSection, setExpandedSection] = useState<string | null>('TEACHING');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -373,14 +392,40 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* Score Overview — designation-aware max values */}
+      {/* Score Overview — designation-aware max values with legacy bonus overflow */}
       {application && (
-        <div className="score-overview">
-          <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? currentTotals?.teaching ?? 0} color="#3b82f6" size="sm" />
-          <ScoreCard label="Research" score={scoreTotals?.research ?? currentTotals?.research ?? 0} color="#8b5cf6" size="sm" />
-          <ScoreCard label="Service" score={scoreTotals?.service ?? currentTotals?.service ?? 0} color="#10b981" size="sm" />
-          <ScoreCard label="Total Score" score={scoreTotals?.total ?? application.total_score ?? currentTotals?.total ?? 0} color="#f59e0b" />
-        </div>
+        <>
+          <div className="score-overview">
+            <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? currentTotals?.teaching ?? 0} color="#3b82f6" size="sm" />
+            <ScoreCard label="Research" score={scoreTotals?.research ?? currentTotals?.research ?? 0} color="#8b5cf6" size="sm" />
+            <ScoreCard label="Service" score={scoreTotals?.service ?? currentTotals?.service ?? 0} color="#10b981" size="sm" />
+            <ScoreCard label="Total Score" score={scoreTotals?.total ?? application.total_score ?? currentTotals?.total ?? 0} color="#f59e0b" />
+            <ScoreCard label="* Bonus Score" score={scoreTotals?.bonus ?? application.bonus_score ?? 0} color="#ec4899" />
+            <ScoreCard label="Final Score" score={scoreTotals?.finalScore ?? application.final_score ?? 0} color="#10b981" />
+          </div>
+
+          {/* Upload Storage Quota & Limits Bar */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.2rem' }}>📁</span>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Application Upload Quota</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Limits: Max 10 MB/file • Max 50 MB total quota • Max 40 documents</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: totalUploadedBytes > 40 * 1024 * 1024 ? '#ef4444' : '#10b981' }}>
+                  {(totalUploadedBytes / (1024 * 1024)).toFixed(1)} MB / 50.0 MB
+                </span>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{totalUploadedFiles} / 40 files uploaded</span>
+              </div>
+              <div style={{ width: '100px', height: '8px', background: 'var(--bg-elevated)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min((totalUploadedBytes / (50 * 1024 * 1024)) * 100, 100)}%`, height: '100%', background: totalUploadedBytes > 40 * 1024 * 1024 ? '#ef4444' : 'linear-gradient(90deg, #6366f1, #10b981)', transition: 'width 0.3s ease' }} />
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Category Form Sections */}

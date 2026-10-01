@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { applicationsApi, reportsApi } from '../lib/api';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
@@ -201,11 +202,14 @@ export default function PrincipalDashboardPage() {
     <div className="principal-page">
       {toast && <div className={`toast toast-${toast.type}`}>{toast.type === 'success' ? '✓' : '✕'} {toast.msg}</div>}
 
-      <div className="page-title">
+      <div className="page-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2>Principal Review Dashboard</h2>
           <p>Final review and approval of faculty appraisals</p>
         </div>
+        <Link to="/analytics" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          📈 View Full Analytics & Graphs
+        </Link>
       </div>
 
       {/* Stats */}

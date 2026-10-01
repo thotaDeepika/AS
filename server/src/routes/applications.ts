@@ -5,7 +5,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js';
 import { calculateApplicationScores, calculateCategoryScore } from '../lib/scoreEngine.js';
-import upload from '../lib/upload.js';
+import upload, { uploadRateLimiter, validateFileHeader, checkApplicationUploadQuota } from '../lib/upload.js';
 import { sendEmail } from '../lib/email.js';
 import { generateAppraisalPDF } from '../lib/reportGenerator.js';
 import supabase from '../lib/supabase.js';
@@ -251,9 +251,10 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
             calculated_score: computed ? computed.calculated_score : entry.calculated_score,
           };
         }) as any;
-        // Temporarily set total_score and final_score for UI preview
+        // Set total_score, bonus_score, and final_score for UI preview
         application.total_score = totals.total as any;
-        application.final_score = totals.total as any;
+        application.bonus_score = totals.bonus as any;
+        application.final_score = totals.finalScore as any;
       } catch (err) {
         console.error('Failed to pre-calculate scores for draft/reverted application:', err);
       }
@@ -401,14 +402,22 @@ router.put('/:id/entry', authorize(Role.FACULTY), async (req: Request, res: Resp
 
 // ─── POST /api/applications/:id/upload/:categoryId — Upload proof ─────────────
 
-router.post('/:id/upload/:categoryId', authorize(Role.FACULTY), upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/upload/:categoryId', authorize(Role.FACULTY), uploadRateLimiter, upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) throw new ValidationError('No file uploaded');
+
+    // Security check: validate binary header signature to prevent extension spoofing
+    if (!validateFileHeader(req.file.buffer, req.file.mimetype)) {
+      throw new ValidationError('Security alert: File content does not match the claimed file extension/type.');
+    }
 
     const application = await prisma.application.findUnique({ where: { id: req.params.id as string } });
     if (!application) throw new NotFoundError('Application');
     if (application.faculty_id !== req.user!.id) throw new ForbiddenError();
     if (application.status !== ApplicationStatus.DRAFT && application.status !== ApplicationStatus.REVERTED) throw new ValidationError('Cannot upload to a submitted application');
+
+    // Quota check: Enforce total application storage limit and file count limit
+    await checkApplicationUploadQuota(application.id, req.file.size);
 
     // Ensure category entry exists
     let entry = await prisma.categoryEntry.findUnique({
@@ -596,7 +605,8 @@ You have one application to be reviewed.`;
       data: {
         status: ApplicationStatus.SUBMITTED,
         total_score: totals.total,
-        final_score: totals.total,
+        bonus_score: totals.bonus,
+        final_score: totals.finalScore,
         submitted_at: new Date(),
       },
       include: {

@@ -194,22 +194,49 @@ export default function ReviewsPage() {
 
         {/* Scores */}
         {(() => {
-          let teaching = 0, research = 0, service = 0;
+          let teaching = 0, service = 0, regResearch = 0, bonusResearch = 0;
           selectedApp.category_entries?.forEach((e: any) => {
             const val = Number(e.reviewer_score !== null && e.reviewer_score !== undefined ? e.reviewer_score : e.calculated_score);
+            const slNo = e.category?.sl_no;
             if (e.category?.section === 'TEACHING') teaching += val;
-            else if (e.category?.section === 'RESEARCH') research += val;
+            else if (e.category?.section === 'RESEARCH') {
+              if ([2, 7, 11, 12].includes(slNo)) bonusResearch += val;
+              else regResearch += val;
+            }
             else if (e.category?.section === 'SERVICE') service += val;
           });
 
-          const total = teaching + research + service;
+          const designation = selectedApp.faculty?.designation || 'ASSISTANT_PROFESSOR';
+          let maxResearch = 10;
+          if (designation.includes('ASSOCIATE')) maxResearch = 20;
+          else if (designation.includes('PROFESSOR') || designation.includes('HEAD')) maxResearch = 30;
+
+          let resScore = regResearch;
+          let bonusScore = bonusResearch;
+
+          if ((resScore + bonusScore) <= maxResearch) {
+            resScore = Number((resScore + bonusScore).toFixed(1));
+            bonusScore = 0;
+          } else if (resScore >= maxResearch) {
+            resScore = maxResearch;
+            bonusScore = Number(bonusScore.toFixed(1));
+          } else {
+            const deficit = maxResearch - resScore;
+            resScore = maxResearch;
+            bonusScore = Number((bonusScore - deficit).toFixed(1));
+          }
+
+          const total = Math.min(teaching + service + resScore, 100);
+          const finalScore = Number((total + bonusScore).toFixed(1));
 
           return (
             <div className="score-overview">
               <ScoreCard label="Teaching" score={teaching} color="#3b82f6" size="sm" />
-              <ScoreCard label="Research" score={research} color="#8b5cf6" size="sm" />
+              <ScoreCard label="Research" score={resScore} color="#8b5cf6" size="sm" />
               <ScoreCard label="Service" score={service} color="#10b981" size="sm" />
-              <ScoreCard label="Total" score={total} color="#f59e0b" />
+              <ScoreCard label="Total Score" score={total} color="#f59e0b" />
+              <ScoreCard label="* Bonus Score" score={selectedApp.bonus_score !== null && selectedApp.bonus_score !== undefined ? Number(selectedApp.bonus_score) : bonusScore} color="#ec4899" />
+              <ScoreCard label="Final Score" score={selectedApp.final_score !== null && selectedApp.final_score !== undefined ? Number(selectedApp.final_score) : finalScore} color="#10b981" />
             </div>
           );
         })()}

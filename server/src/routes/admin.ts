@@ -441,4 +441,156 @@ router.put('/scoring-categories/:id', async (req: Request, res: Response, next: 
   }
 });
 
+// ─── Default Categories and Formulas Metadata ──────────────────────────────
+const DEFAULT_CATEGORIES_METADATA: Record<number, any> = {
+  1: { section: 'TEACHING', name: 'FCI Score', description: 'Average FCI Score of all courses handled (percentage)', input_type: 'percentage', input_config: { max_attachments: 1, field: 'fci_percentage' } },
+  2: { section: 'RESEARCH', name: 'Non-paid Refereed Journal Papers in SJR/Scopus/Web of Science', description: 'Faculty must be one among first 3 authors. 1 paper = 100% of research weightage.', input_type: 'number', input_config: { max_attachments: 2, field: 'count' } },
+  3: { section: 'RESEARCH', name: 'Indexed Conference Papers in SJR/Scopus/Web of Science', description: 'Faculty must be one among first 3 authors. Designation-based scoring per paper.', input_type: 'number', input_config: { max_attachments: 2, field: 'count' } },
+  4: { section: 'RESEARCH', name: 'Non-paid Non-refereed Journals and Non-indexed Conferences', description: 'Faculty must be one among first 3 authors. 10% of research weightage.', input_type: 'number', input_config: { max_attachments: 2, field: 'count' } },
+  5: { section: 'RESEARCH', name: 'Books/Chapters', description: 'Faculty must be one among first 3 authors. 1 book = 50%, 1 chapter = 20%.', input_type: 'composite', input_config: { max_attachments: 1, fields: ['books', 'chapters'] } },
+  6: { section: 'RESEARCH', name: 'Disclosures Filed', description: '1 disclosure = 10% of research weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  7: { section: 'RESEARCH', name: 'Patents Granted', description: '1 patent = 50% of research weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  8: { section: 'RESEARCH', name: 'Research Guidance UG', description: '1 batch = 1% of research weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  9: { section: 'RESEARCH', name: 'Research Guidance PG', description: '1 batch = 3% of research weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  10: { section: 'RESEARCH', name: 'Research Guidance PhD', description: '1 batch = 7% of research weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  11: { section: 'RESEARCH', name: 'Funded Projects', description: 'Slab-based: ≥10L=100%, ≥5L=50%, ≥1L=30%, <1L=20% of research weightage.', input_type: 'currency_slab', input_config: { max_attachments: 1, field: 'amount_lakhs' } },
+  12: { section: 'RESEARCH', name: 'Consulting Projects', description: 'Slab-based: ≥10L=100%, ≥5L=60%, ≥1L=50%, <1L=20% of research weightage.', input_type: 'currency_slab', input_config: { max_attachments: 1, field: 'amount_lakhs' } },
+  13: { section: 'SERVICE', name: 'Conference Chair, Session Chair, Reviewer of Q1/Q2 Journal', description: '5% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  14: { section: 'SERVICE', name: 'FDP/Seminar/Workshop organized as coordinator', description: '5 days = 10%, 3 days = 5% of service weightage.', input_type: 'days_slab', input_config: { max_attachments: 1, field: 'days' } },
+  15: { section: 'SERVICE', name: 'Invited Technical Talks outside the Institute', description: '10% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  16: { section: 'SERVICE', name: 'Events Participated Outside Institute (FDP/Seminar/Workshop/Conference)', description: '10% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  17: { section: 'SERVICE', name: 'Events Participated Inside Institute (FDP/Seminar/Workshop/Conference)', description: '5% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  18: { section: 'SERVICE', name: 'Industry Relations (MoU, Co-hosted event, Technical Talk Series)', description: '10% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  19: { section: 'SERVICE', name: 'Institutional/Departmental Services (NBA/NIRF)', description: 'Coordinator = 20%, Others = 5% of service weightage.', input_type: 'role_select', input_config: { max_attachments: 1, field: 'role', options: ['coordinator', 'member'] } },
+  20: { section: 'SERVICE', name: 'Other Services to Institution or Society Contribution', description: '3% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  21: { section: 'SERVICE', name: 'Awards and Honours', description: '1 event = 15% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  22: { section: 'SERVICE', name: 'Professionalism / Team Spirit', description: '2% of service weightage.', input_type: 'number', input_config: { max_attachments: 1, field: 'count' } },
+  23: { section: 'SERVICE', name: 'Any Other Major Contributions', description: 'Free text (max 500 characters), no automatic scoring.', input_type: 'text', input_config: { max_attachments: 1, field: 'description', max_chars: 500 } },
+};
+
+const DEFAULT_FORMULAS_BY_SL: Record<number, any> = {
+  1:  { type: 'fci_slab', slabs: [{ min: 85, pct: 100 }, { min: 80, pct: 90 }, { min: 75, pct: 80 }, { min: 70, pct: 70 }, { min: 0, pct: 40 }] },
+  2:  { type: 'count_threshold', pct_per_item: 100, description: '1 paper = 100% of research weightage' },
+  3:  { type: 'designation_based', ASSISTANT_PROFESSOR: 50, ASSOCIATE_PROFESSOR: 25, PROFESSOR: 20, description: 'pct per paper varies by designation' },
+  4:  { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+  5:  { type: 'composite', book_pct: 50, chapter_pct: 20, description: '1 book=50%, 1 chapter=20%' },
+  6:  { type: 'count_pct', pct_per_item: 10, description: '1 disclosure = 10%' },
+  7:  { type: 'count_pct', pct_per_item: 50, description: '1 patent = 50%' },
+  8:  { type: 'count_pct', pct_per_item: 1, description: '1 batch = 1%' },
+  9:  { type: 'count_pct', pct_per_item: 3, description: '1 batch = 3%' },
+  10: { type: 'count_pct', pct_per_item: 7, description: '1 batch = 7%' },
+  11: { type: 'currency_slab', slabs: [{ min: 10, pct: 100 }, { min: 5, pct: 50 }, { min: 1, pct: 30 }, { min: 0, pct: 20 }] },
+  12: { type: 'currency_slab', slabs: [{ min: 10, pct: 100 }, { min: 5, pct: 60 }, { min: 1, pct: 50 }, { min: 0, pct: 20 }] },
+  13: { type: 'count_threshold', pct_if_any: 5, description: '5% if count > 0' },
+  14: { type: 'days_slab', slabs: [{ min: 5, pct: 10 }, { min: 3, pct: 5 }] },
+  15: { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+  16: { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+  17: { type: 'count_threshold', pct_if_any: 5, description: '5% if count > 0' },
+  18: { type: 'count_threshold', pct_if_any: 10, description: '10% if count > 0' },
+  19: { type: 'role_based', coordinator_pct: 20, member_pct: 5 },
+  20: { type: 'count_threshold', pct_if_any: 3, description: '3% if count > 0' },
+  21: { type: 'count_pct', pct_per_item: 15, description: '1 event = 15%' },
+  22: { type: 'count_threshold', pct_if_any: 2, description: '2% if count > 0' },
+  23: { type: 'free_text', pct: 0, description: 'No automatic scoring' },
+};
+
+const DEFAULT_SECTION_MAXES: Record<string, Record<string, number>> = {
+  TEACHING: { ASSISTANT_PROFESSOR: 60, ASSOCIATE_PROFESSOR: 50, PROFESSOR: 40 },
+  RESEARCH: { ASSISTANT_PROFESSOR: 10, ASSOCIATE_PROFESSOR: 20, PROFESSOR: 30 },
+  SERVICE:  { ASSISTANT_PROFESSOR: 30, ASSOCIATE_PROFESSOR: 30, PROFESSOR: 30 },
+};
+
+// ─── POST /api/admin/scoring-categories/:id/reset-default — Revert category to default ────
+router.post('/scoring-categories/:id/reset-default', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const catId = req.params.id as string;
+    const cat = await prisma.scoringCategory.findUnique({
+      where: { id: catId },
+      include: { scoring_rules: true }
+    });
+
+    if (!cat) throw new NotFoundError('Scoring Category');
+
+    const meta = DEFAULT_CATEGORIES_METADATA[cat.sl_no];
+    if (!meta) throw new ValidationError('No default metadata found for category sl_no ' + cat.sl_no);
+
+    const updatedCat = await prisma.scoringCategory.update({
+      where: { id: catId },
+      data: {
+        name: meta.name,
+        description: meta.description,
+        is_active: true,
+        input_config: meta.input_config,
+      }
+    });
+
+    const formula = DEFAULT_FORMULAS_BY_SL[cat.sl_no] || {};
+    const sectionMax = DEFAULT_SECTION_MAXES[meta.section] || {};
+
+    for (const rule of cat.scoring_rules) {
+      const defaultMax = sectionMax[rule.designation] || 30;
+      await prisma.scoringRule.update({
+        where: { id: rule.id },
+        data: {
+          max_weightage: defaultMax,
+          formula: formula
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Category SL #${cat.sl_no} (${meta.name}) reverted to system default`,
+      data: { category: updatedCat }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── POST /api/admin/scoring-categories/reset-defaults — Revert ALL categories to default ───
+router.post('/scoring-categories/reset-defaults', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const allCategories = await prisma.scoringCategory.findMany({
+      include: { scoring_rules: true }
+    });
+
+    for (const cat of allCategories) {
+      const meta = DEFAULT_CATEGORIES_METADATA[cat.sl_no];
+      if (!meta) continue;
+
+      await prisma.scoringCategory.update({
+        where: { id: cat.id },
+        data: {
+          name: meta.name,
+          description: meta.description,
+          is_active: true,
+          input_config: meta.input_config,
+        }
+      });
+
+      const formula = DEFAULT_FORMULAS_BY_SL[cat.sl_no] || {};
+      const sectionMax = DEFAULT_SECTION_MAXES[meta.section] || {};
+
+      for (const rule of cat.scoring_rules) {
+        const defaultMax = sectionMax[rule.designation] || 30;
+        await prisma.scoringRule.update({
+          where: { id: rule.id },
+          data: {
+            max_weightage: defaultMax,
+            formula: formula
+          }
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'All scoring categories and rules reverted to system defaults successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

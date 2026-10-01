@@ -160,6 +160,12 @@ export const adminApi = {
   updateScoringCategory: (id: string, data: any) => 
     api.put(`/admin/scoring-categories/${id}`, data),
 
+  resetCategoryDefault: (id: string) =>
+    api.post(`/admin/scoring-categories/${id}/reset-default`),
+
+  resetAllScoringDefaults: () =>
+    api.post('/admin/scoring-categories/reset-defaults'),
+
   auditLogs: (params?: Record<string, string>) =>
     api.get('/admin/audit-logs', { params }),
 
@@ -190,4 +196,11 @@ export const reportsApi = {
 
   downloadExcel: (params?: Record<string, string>) =>
     api.get('/reports/consolidated/excel', { params, responseType: 'blob' }),
+};
+
+// ─── Analytics API ────────────────────────────────────────────────────────────
+
+export const analyticsApi = {
+  dashboard: (params?: Record<string, string>) =>
+    api.get('/analytics', { params }),
 };

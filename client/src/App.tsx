@@ -13,6 +13,7 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import PrincipalDashboardPage from './pages/PrincipalDashboardPage';
 import AccountsDashboardPage from './pages/AccountsDashboardPage';
 import ReportsPage from './pages/ReportsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -36,6 +37,7 @@ function AppRoutes() {
       {/* Protected layout routes */}
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/applications" element={<ApplicationsPage />} />
         <Route path="/history" element={<SubmissionHistoryPage />} />
         <Route path="/users" element={<UsersPage />} />

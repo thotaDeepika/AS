@@ -100,6 +100,21 @@ export default function LoginPage() {
             <h1 className="login-title">Faculty Appraisal<br/>& Increment System</h1>
             <p className="login-subtitle">Ramaiah Institute of Technology, Bangalore</p>
 
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.2)', fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem', opacity: 0.8 }}>Developed for RIT by:</div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px', alignItems: 'center' }}>
+                <a href="https://www.linkedin.com/in/sm-manish/" target="_blank" rel="noreferrer" style={{ color: '#ffffff', textDecoration: 'underline', fontWeight: 700 }}>
+                  Manish S M 🔗
+                </a>
+                <span>&amp;</span>
+                <a href="https://www.linkedin.com/in/deepikaprofile/" target="_blank" rel="noreferrer" style={{ color: '#ffffff', textDecoration: 'underline', fontWeight: 700 }}>
+                  Deepika T 🔗
+                </a>
+              </div>
+              <div style={{ marginTop: '8px', fontSize: '0.73rem', opacity: 0.85 }}>
+                Under guidance of <strong>Dr. Geetha J</strong> &amp; <strong>Dr. Sowmya B J</strong>
+              </div>
+            </div>
           </div>
         </div>
         <div className="login-form-panel">
