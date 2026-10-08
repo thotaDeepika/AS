@@ -21,7 +21,7 @@ interface Department {
   code: string;
 }
 
-const ROLES = ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL', 'ADMIN', 'ACCOUNTS'];
+const ROLES = ['FACULTY', 'HOD', 'REVIEWER', 'CHAIRMAN_REVIEWER', 'PRINCIPAL', 'ADMIN', 'ACCOUNTS'];
 const DESIGNATIONS = ['ASSISTANT_PROFESSOR', 'ASSOCIATE_PROFESSOR', 'PROFESSOR'];
 
 export default function UsersPage() {
@@ -97,7 +97,7 @@ export default function UsersPage() {
         await usersApi.update(editingUser.id, {
           name: form.name,
           role: form.role,
-          designation: ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
+          designation: ['FACULTY', 'HOD', 'REVIEWER', 'CHAIRMAN_REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
           department_id: ['FACULTY', 'HOD'].includes(form.role) ? form.department_id : null,
           joining_date: form.joining_date ? new Date(form.joining_date).toISOString() : null,
         });
@@ -107,7 +107,7 @@ export default function UsersPage() {
           email: form.email,
           name: form.name,
           role: form.role,
-          designation: ['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
+          designation: ['FACULTY', 'HOD', 'REVIEWER', 'CHAIRMAN_REVIEWER', 'PRINCIPAL'].includes(form.role) && form.designation ? form.designation : null,
           department_id: ['FACULTY', 'HOD'].includes(form.role) ? form.department_id : null,
           joining_date: form.joining_date ? new Date(form.joining_date).toISOString() : null,
           password: form.password || undefined,
@@ -344,7 +344,7 @@ export default function UsersPage() {
                   )}
                 </div>
               </div>
-              {['FACULTY', 'HOD', 'REVIEWER', 'PRINCIPAL'].includes(form.role) && (
+              {['FACULTY', 'HOD', 'REVIEWER', 'CHAIRMAN_REVIEWER', 'PRINCIPAL'].includes(form.role) && (
                 <div className="form-group">
                   <label>Designation</label>
                   <select value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })}>

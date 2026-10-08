@@ -5,7 +5,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'FACULTY' | 'HOD' | 'REVIEWER' | 'PRINCIPAL' | 'ADMIN' | 'ACCOUNTS';
+  role: 'FACULTY' | 'HOD' | 'REVIEWER' | 'CHAIRMAN_REVIEWER' | 'PRINCIPAL' | 'ADMIN' | 'ACCOUNTS';
   designation?: 'ASSISTANT_PROFESSOR' | 'ASSOCIATE_PROFESSOR' | 'PROFESSOR' | null;
   department: { id: string; name: string; code: string };
 }

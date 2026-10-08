@@ -72,6 +72,70 @@ You have this application to be reviewed in your dashboard.`;
   }
 });
 
+// ─── POST /api/admin/assign-chairman — Assign chairman reviewer ──────────────
+
+const assignChairmanSchema = z.object({
+  application_id: z.string(),
+  chairman_id: z.string(),
+});
+
+router.post('/assign-chairman', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { application_id, chairman_id } = assignChairmanSchema.parse(req.body);
+
+    const application = await prisma.application.findUnique({ where: { id: application_id } });
+    if (!application) throw new NotFoundError('Application');
+    if (application.status !== ApplicationStatus.REVIEWER_REVIEWED && application.status !== ApplicationStatus.CHAIRMAN_ASSIGNED) {
+      throw new ValidationError(`Cannot assign Chairman Reviewer. Application must be in REVIEWER_REVIEWED or CHAIRMAN_ASSIGNED status (current: ${application.status})`);
+    }
+
+    const chairman = await prisma.user.findUnique({ where: { id: chairman_id } });
+    if (!chairman) throw new NotFoundError('Chairman Reviewer user');
+    if (!chairman.is_active) throw new ValidationError('Chairman Reviewer account is inactive');
+    if (chairman.role !== Role.CHAIRMAN_REVIEWER) {
+      throw new ValidationError('Selected user is not a Chairman Reviewer');
+    }
+
+    // Ensure chairman is not the faculty who submitted
+    if (chairman_id === application.faculty_id) {
+      throw new ValidationError('Cannot assign the applicant as their own chairman reviewer');
+    }
+
+    const updated = await prisma.application.update({
+      where: { id: application_id },
+      data: {
+        status: ApplicationStatus.CHAIRMAN_ASSIGNED,
+        chairman_id: chairman_id,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        user_id: req.user!.id,
+        action: AuditAction.CHAIRMAN_ASSIGNED,
+        entity_type: 'Application',
+        entity_id: application_id,
+        details: { chairman_id, chairman_name: chairman.name },
+      },
+    });
+
+    const subject = `New Application Assigned for Chairman Review`;
+    const body = `Dear ${chairman.name},<br><br>
+An application has been assigned to you by the Admin for Chairman Review for the academic year ${application.academic_year}.<br>
+Please access your dashboard to complete the review.`;
+    
+    sendEmail(chairman.email, subject, body).catch(e => console.error("Failed to send chairman email", e));
+
+    res.json({
+      success: true,
+      data: { application: updated },
+      message: `Chairman Reviewer ${chairman.name} assigned successfully`,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ─── POST /api/admin/forward-to-principal — Forward to Principal ─────────────
 
 const forwardSchema = z.object({
@@ -86,9 +150,9 @@ router.post('/forward-to-principal', async (req: Request, res: Response, next: N
       where: { id: { in: application_ids } },
     });
 
-    const invalid = applications.filter(a => a.status !== ApplicationStatus.REVIEWER_REVIEWED);
+    const invalid = applications.filter(a => a.status !== ApplicationStatus.CHAIRMAN_REVIEWED && a.status !== ApplicationStatus.REVIEWER_REVIEWED);
     if (invalid.length > 0) {
-      throw new ValidationError(`${invalid.length} application(s) are not in REVIEWER_REVIEWED status and cannot be forwarded`);
+      throw new ValidationError(`${invalid.length} application(s) are not ready to be forwarded to Principal`);
     }
 
     // Note: No explicit status change here — Principal reviews from REVIEWER_REVIEWED
@@ -185,9 +249,9 @@ router.post('/send-to-accounts', async (req: Request, res: Response, next: NextF
       where: { id: { in: application_ids } },
     });
 
-    const invalid = applications.filter(a => a.status !== ApplicationStatus.FROZEN);
+    const invalid = applications.filter(a => a.status !== ApplicationStatus.FROZEN && a.status !== ApplicationStatus.PRINCIPAL_REVIEWED);
     if (invalid.length > 0) {
-      throw new ValidationError(`${invalid.length} application(s) are not FROZEN and cannot be sent to accounts`);
+      throw new ValidationError(`${invalid.length} application(s) are not in PRINCIPAL_REVIEWED or FROZEN status and cannot be sent to accounts`);
     }
 
     await prisma.application.updateMany({

@@ -32,6 +32,8 @@ export default function ReviewsPage() {
   const [comments, setComments] = useState('');
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [reviewerScoreInput, setReviewerScoreInput] = useState<string>('');
+  const [savingOverallScore, setSavingOverallScore] = useState<boolean>(false);
 
   const loadApplications = async () => {
     try {
@@ -51,7 +53,16 @@ export default function ReviewsPage() {
   const handleViewDetail = async (app: Application) => {
     try {
       const res = await applicationsApi.getById(app.id);
-      setSelectedApp(res.data.data.application);
+      const appData = res.data.data.application;
+      setSelectedApp(appData);
+      if (appData.reviewer_score !== null && appData.reviewer_score !== undefined) {
+        setReviewerScoreInput(Number(appData.reviewer_score).toFixed(1));
+      } else if (appData.total_score !== null && appData.total_score !== undefined) {
+        setReviewerScoreInput(Number(appData.total_score).toFixed(1));
+      } else {
+        setReviewerScoreInput('');
+      }
+
       if (user?.role === 'PRINCIPAL') {
         setDecision('APPROVED');
       } else {
@@ -59,6 +70,26 @@ export default function ReviewsPage() {
       }
     } catch (err: any) {
       showToast('error', err.response?.data?.error || 'Failed to load application');
+    }
+  };
+
+  const handleSaveOverallScore = async () => {
+    if (!selectedApp || reviewerScoreInput === '') return;
+    setSavingOverallScore(true);
+    try {
+      const val = Number(reviewerScoreInput);
+      const res = await reviewsApi.updateScore(selectedApp.id, val);
+      setSelectedApp((prev: any) => ({
+        ...prev,
+        reviewer_score: res.data.data.reviewer_score,
+        final_score: res.data.data.final_score,
+      }));
+      showToast('success', 'Reviewer score updated successfully');
+      loadApplications();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || 'Failed to update reviewer score');
+    } finally {
+      setSavingOverallScore(false);
     }
   };
 
@@ -71,7 +102,8 @@ export default function ReviewsPage() {
         const uploadRes = await reviewsApi.uploadSignature(signatureFile);
         signaturePath = uploadRes.data.data.file_path;
       }
-      const res = await reviewsApi.submit(selectedApp.id, decision, comments, undefined, signaturePath);
+      const scoreToSend = user?.role === 'REVIEWER' && reviewerScoreInput !== '' ? Number(reviewerScoreInput) : undefined;
+      const res = await reviewsApi.submit(selectedApp.id, decision, comments, scoreToSend, signaturePath);
       showToast('success', res.data.message);
       setComments('');
       setSignatureFile(null);
@@ -130,9 +162,9 @@ export default function ReviewsPage() {
       sortable: true,
       render: (row: Application) => (
         <span className="cell-score">
-          {row.reviewer_score !== null && row.reviewer_score !== undefined
+          {row.reviewer_score !== null && row.reviewer_score !== undefined && Number(row.reviewer_score) !== Number(row.total_score)
             ? <><span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Reviewer Score">{Number(row.reviewer_score).toFixed(1)}</span> <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">{row.total_score != null ? Number(row.total_score).toFixed(1) : ''}</span></>
-            : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—')}
+            : ((row.reviewer_score ?? row.total_score) != null ? Number(row.reviewer_score ?? row.total_score).toFixed(1) : '—')}
         </span>
       ),
     },
@@ -229,15 +261,60 @@ export default function ReviewsPage() {
           const total = Math.min(teaching + service + resScore, 100);
           const finalScore = Number((total + bonusScore).toFixed(1));
 
+          const isReviewerActive = user?.role === 'REVIEWER' && selectedApp.status === 'REVIEWER_ASSIGNED' && selectedApp.reviewer_id === user.id;
+          const currentTotal = selectedApp.reviewer_score !== null && selectedApp.reviewer_score !== undefined
+            ? Number(selectedApp.reviewer_score)
+            : total;
+          const currentFinal = selectedApp.final_score !== null && selectedApp.final_score !== undefined
+            ? Number(selectedApp.final_score)
+            : (selectedApp.reviewer_score !== null && selectedApp.reviewer_score !== undefined ? Number(selectedApp.reviewer_score) : finalScore);
+
           return (
-            <div className="score-overview">
-              <ScoreCard label="Teaching" score={teaching} color="#3b82f6" size="sm" />
-              <ScoreCard label="Research" score={resScore} color="#8b5cf6" size="sm" />
-              <ScoreCard label="Service" score={service} color="#10b981" size="sm" />
-              <ScoreCard label="Total Score" score={total} color="#f59e0b" />
-              <ScoreCard label="* Bonus Score" score={selectedApp.bonus_score !== null && selectedApp.bonus_score !== undefined ? Number(selectedApp.bonus_score) : bonusScore} color="#ec4899" />
-              <ScoreCard label="Final Score" score={selectedApp.final_score !== null && selectedApp.final_score !== undefined ? Number(selectedApp.final_score) : finalScore} color="#10b981" />
-            </div>
+            <>
+              {isReviewerActive && (
+                <div style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.12))', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '1.6rem' }}>✏️</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#b45309' }}>Reviewer Score Editor</div>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        You can adjust individual category scores below OR set a direct new score here. This updated score will be reflected to Principal, Accounts, and Faculty later in the pipeline.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>New Score:</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1000"
+                      value={reviewerScoreInput}
+                      onChange={e => setReviewerScoreInput(e.target.value)}
+                      placeholder="0.0"
+                      style={{ width: '90px', padding: '6px 10px', borderRadius: '6px', border: '1.5px solid #f59e0b', fontWeight: 700, fontSize: '1rem', textAlign: 'right', color: '#b45309', background: '#fff' }}
+                    />
+                    <button
+                      className="btn-primary"
+                      onClick={handleSaveOverallScore}
+                      disabled={savingOverallScore || reviewerScoreInput === ''}
+                      style={{ padding: '6px 14px', fontSize: '0.85rem', backgroundColor: '#f59e0b', borderColor: '#d97706' }}
+                    >
+                      {savingOverallScore ? 'Saving...' : '💾 Save New Score'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="score-overview">
+                <ScoreCard label="Teaching" score={teaching} color="#3b82f6" size="sm" />
+                <ScoreCard label="Research" score={resScore} color="#8b5cf6" size="sm" />
+                <ScoreCard label="Service" score={service} color="#10b981" size="sm" />
+                <ScoreCard label="Total Score" score={currentTotal} color="#f59e0b" />
+                <ScoreCard label="* Bonus Score" score={selectedApp.bonus_score !== null && selectedApp.bonus_score !== undefined ? Number(selectedApp.bonus_score) : bonusScore} color="#ec4899" />
+                <ScoreCard label="Final Score" score={currentFinal} color="#10b981" />
+              </div>
+            </>
           );
         })()}
 
@@ -258,17 +335,27 @@ export default function ReviewsPage() {
                       appId={selectedApp.id}
                       categoryId={entry.category_id}
                       initialScore={entry.reviewer_score !== null ? entry.reviewer_score : entry.calculated_score}
-                      onScoreUpdated={(newVal) => setSelectedApp((prev: any) => {
-                        const newEntries = prev.category_entries.map((ce: any) => 
-                          ce.category_id === entry.category_id ? { ...ce, reviewer_score: newVal } : ce
-                        );
-                        return { ...prev, category_entries: newEntries };
-                      })}
+                      onScoreUpdated={(newVal, fullData) => {
+                        setSelectedApp((prev: any) => {
+                          const newEntries = prev.category_entries.map((ce: any) => 
+                            ce.category_id === entry.category_id ? { ...ce, reviewer_score: newVal } : ce
+                          );
+                          return {
+                            ...prev,
+                            reviewer_score: fullData?.reviewer_score ?? prev.reviewer_score,
+                            final_score: fullData?.final_score ?? prev.final_score,
+                            category_entries: newEntries,
+                          };
+                        });
+                        if (fullData?.reviewer_score !== undefined && fullData?.reviewer_score !== null) {
+                          setReviewerScoreInput(Number(fullData.reviewer_score).toFixed(1));
+                        }
+                      }}
                     />
                   ) : (
-                    entry.reviewer_score !== null 
+                    entry.reviewer_score !== null && entry.reviewer_score !== undefined && Number(entry.reviewer_score) !== Number(entry.calculated_score)
                       ? <><span title="Reviewer Adjusted Score" style={{color: '#f59e0b', fontWeight: 'bold'}}>{Number(entry.reviewer_score).toFixed(1)}</span> <span style={{textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8'}}>{Number(entry.calculated_score).toFixed(1)}</span></>
-                      : (entry.calculated_score !== null ? Number(entry.calculated_score).toFixed(1) : '—')
+                      : ((entry.reviewer_score ?? entry.calculated_score) !== null ? Number(entry.reviewer_score ?? entry.calculated_score).toFixed(1) : '—')
                   )}
                 </span>
               </div>
@@ -368,7 +455,31 @@ export default function ReviewsPage() {
                   )}
                 </select>
               </div>
-              {/* Removed overall Reviewer Score input as per requirements */}
+              {user?.role === 'REVIEWER' && (
+                <div className="form-group" style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#b45309', fontWeight: 700, marginBottom: '6px' }}>
+                    <span>Reviewer Score / New Score (Override)</span>
+                    {selectedApp.total_score != null && (
+                      <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal' }}>
+                        Original Submission Score: <strong>{Number(selectedApp.total_score).toFixed(1)}</strong>
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="1000"
+                    value={reviewerScoreInput}
+                    onChange={e => setReviewerScoreInput(e.target.value)}
+                    placeholder="Enter final score..."
+                    style={{ width: '100%', padding: '8px 12px', fontSize: '1.05rem', fontWeight: 700, color: '#b45309', border: '1.5px solid #f59e0b', borderRadius: '6px', background: '#fff' }}
+                  />
+                  <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
+                    ℹ️ This updated new score will overwrite the system score and be reflected to everyone later in the pipeline (Principal, Accounts, Reports, and Faculty).
+                  </p>
+                </div>
+              )}
               <div className="form-group">
                 <label>Comments</label>
                 <textarea
@@ -393,7 +504,7 @@ export default function ReviewsPage() {
     <div className="reviews-page">
       {toast && <div className={`toast toast-${toast.type}`}>{toast.type === 'success' ? '✓' : '✕'} {toast.msg}</div>}
       <div className="page-title">
-        <h2>{user?.role === 'HOD' ? 'Department Reviews' : user?.role === 'REVIEWER' ? 'Assigned Reviews' : 'Applications for Review'}</h2>
+        <h2>{user?.role === 'HOD' ? 'Department Reviews' : user?.role === 'REVIEWER' ? 'Assigned Reviews' : user?.role === 'CHAIRMAN_REVIEWER' ? 'Chairman Assigned Reviews' : 'Applications for Review'}</h2>
         <p>Review and provide your assessment for submitted applications</p>
       </div>
       <DataTable
@@ -412,38 +523,47 @@ export default function ReviewsPage() {
 function canReview(role: string, status: string): boolean {
   if (role === 'HOD' && status === 'SUBMITTED') return true;
   if (role === 'REVIEWER' && status === 'REVIEWER_ASSIGNED') return true;
-  if (role === 'PRINCIPAL' && status === 'REVIEWER_REVIEWED') return true;
+  if (role === 'CHAIRMAN_REVIEWER' && status === 'CHAIRMAN_ASSIGNED') return true;
+  if (role === 'PRINCIPAL' && (status === 'CHAIRMAN_REVIEWED' || status === 'REVIEWER_REVIEWED')) return true;
   return false;
 }
 
-function EntryScoreInput({ appId, categoryId, initialScore, onScoreUpdated }: { appId: string, categoryId: string, initialScore: any, onScoreUpdated: (data: any) => void }) {
-  const [val, setVal] = useState(initialScore !== null ? Number(initialScore).toFixed(1) : '');
+function EntryScoreInput({ appId, categoryId, initialScore, onScoreUpdated }: { appId: string, categoryId: string, initialScore: any, onScoreUpdated: (newVal: any, fullData?: any) => void }) {
+  const [val, setVal] = useState(initialScore !== null && initialScore !== undefined ? Number(initialScore).toFixed(1) : '');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setVal(initialScore !== null && initialScore !== undefined ? Number(initialScore).toFixed(1) : '');
+  }, [initialScore]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      await reviewsApi.updateEntryScore(appId, categoryId, val === '' ? '' : Number(val));
-      onScoreUpdated(val === '' ? null : Number(val));
+      const res = await reviewsApi.updateEntryScore(appId, categoryId, val === '' ? '' : Number(val));
+      onScoreUpdated(val === '' ? null : Number(val), res.data?.data);
     } catch (err) {
       console.error(err);
       // fallback to initial
-      setVal(initialScore !== null ? Number(initialScore).toFixed(1) : '');
+      setVal(initialScore !== null && initialScore !== undefined ? Number(initialScore).toFixed(1) : '');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <input
-      type="number"
-      value={val}
-      onChange={e => setVal(e.target.value)}
-      onBlur={handleSave}
-      onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-      disabled={saving}
-      style={{ width: '80px', padding: '4px', textAlign: 'right', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-      title="Edit Score"
-    />
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+      <input
+        type="number"
+        step="0.1"
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+        disabled={saving}
+        style={{ width: '80px', padding: '4px 6px', textAlign: 'right', border: '1.5px solid #cbd5e1', borderRadius: '4px', fontWeight: 600, color: '#b45309', background: '#fff' }}
+        title="Edit Score"
+      />
+      {saving && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>💾</span>}
+    </div>
   );
 }

@@ -23,6 +23,8 @@ const statusLabels: Record<string, string> = {
   HOD_REVIEWED: 'HOD Reviewed',
   REVIEWER_ASSIGNED: 'Reviewer Assigned',
   REVIEWER_REVIEWED: 'Reviewer Reviewed',
+  CHAIRMAN_ASSIGNED: 'Chairman Assigned',
+  CHAIRMAN_REVIEWED: 'Chairman Reviewed',
   PRINCIPAL_REVIEWED: 'Principal Reviewed',
   FROZEN: 'Frozen',
   SENT_TO_ACCOUNTS: 'Sent to Accounts',
@@ -179,9 +181,10 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
   yPos += 20;
   if (yPos > doc.page.height - 150) { doc.addPage(); yPos = 50; }
   
+  const displayTotal = app.reviewer_score !== null ? Number(app.reviewer_score) : dynamicTotal;
   doc.rect(50, yPos, 495, 20).stroke(lineColor);
   doc.font('Helvetica-Bold').fontSize(10).text('Total', 55, yPos + 5, { width: 395, align: 'right' });
-  doc.text(dynamicTotal.toFixed(1), 455, yPos + 5);
+  doc.text(displayTotal.toFixed(1), 455, yPos + 5);
   
   yPos += 60;
   if (yPos > doc.page.height - 100) { doc.addPage(); yPos = 50; }
@@ -454,7 +457,9 @@ export async function generateConsolidatedPDF(
       else if (section === 'SERVICE') serviceScore += scoreVal;
     });
 
-    const finalTotal = teachingScore + researchScore + serviceScore;
+    const finalTotal = app.reviewer_score !== null 
+      ? Number(app.reviewer_score) 
+      : (app.final_score !== null && Number(app.final_score) > 0 ? Number(app.final_score) : (teachingScore + researchScore + serviceScore));
 
     doc.fill(darkText).fontSize(8).font('Helvetica');
     let rx = 45;

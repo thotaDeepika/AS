@@ -9,6 +9,7 @@ const roleLabels: Record<string, string> = {
   HOD: 'Head of Department',
   FACULTY: 'Faculty',
   REVIEWER: 'Reviewer',
+  CHAIRMAN_REVIEWER: 'Chairman Reviewer',
   ACCOUNTS: 'Accounts',
 };
 
@@ -18,6 +19,7 @@ const roleColors: Record<string, string> = {
   HOD: '#3b82f6',
   FACULTY: '#10b981',
   REVIEWER: '#f59e0b',
+  CHAIRMAN_REVIEWER: '#ec4899',
   ACCOUNTS: '#6366f1',
 };
 
@@ -29,14 +31,14 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'PRINCIPAL', 'HOD', 'FACULTY', 'REVIEWER', 'ACCOUNTS'] },
+  { path: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'PRINCIPAL', 'HOD', 'FACULTY', 'REVIEWER', 'CHAIRMAN_REVIEWER', 'ACCOUNTS'] },
   { path: '/analytics', label: 'Analytics & Graphs', icon: '📈', roles: ['ADMIN', 'PRINCIPAL', 'HOD'] },
   { path: '/applications', label: 'My Application', icon: '📝', roles: ['FACULTY'] },
   { path: '/history', label: 'Submission History', icon: '📜', roles: ['FACULTY'] },
 
   { path: '/users', label: 'User Management', icon: '👥', roles: ['ADMIN'] },
   { path: '/scoring', label: 'Scoring Config', icon: '⚙️', roles: ['ADMIN'] },
-  { path: '/reviews', label: 'Pending Reviews', icon: '✅', roles: ['HOD', 'REVIEWER'] },
+  { path: '/reviews', label: 'Pending Reviews', icon: '✅', roles: ['HOD', 'REVIEWER', 'CHAIRMAN_REVIEWER'] },
   { path: '/assign-reviewers', label: 'Assign Reviewers', icon: '🔀', roles: ['ADMIN'] },
   { path: '/principal-review', label: 'Principal Review', icon: '👔', roles: ['PRINCIPAL'] },
   { path: '/accounts', label: 'Accounts', icon: '💰', roles: ['ACCOUNTS'] },

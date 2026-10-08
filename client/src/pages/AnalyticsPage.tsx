@@ -212,6 +212,7 @@ export default function AnalyticsPage() {
             <option value="SUBMITTED">Submitted</option>
             <option value="IN_REVIEW">In Review (HOD / Peer)</option>
             <option value="REVIEWER_REVIEWED">Reviewer Reviewed</option>
+            <option value="CHAIRMAN_REVIEWED">Chairman Reviewed</option>
             <option value="APPROVED">Approved / Finalized</option>
             <option value="FROZEN">Frozen</option>
             <option value="SENT_TO_ACCOUNTS">Sent to Accounts</option>

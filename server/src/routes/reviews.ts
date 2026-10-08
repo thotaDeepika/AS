@@ -31,6 +31,16 @@ const WORKFLOW_TRANSITIONS: Record<string, { allowedRoles: Role[]; nextStatus: A
     nextStatus: ApplicationStatus.REVIEWER_REVIEWED,
     allowedDecisions: [ReviewDecision.RECOMMENDED, ReviewDecision.NOT_RECOMMENDED],
   },
+  [ApplicationStatus.CHAIRMAN_ASSIGNED]: {
+    allowedRoles: [Role.CHAIRMAN_REVIEWER],
+    nextStatus: ApplicationStatus.CHAIRMAN_REVIEWED,
+    allowedDecisions: [ReviewDecision.RECOMMENDED, ReviewDecision.NOT_RECOMMENDED],
+  },
+  [ApplicationStatus.CHAIRMAN_REVIEWED]: {
+    allowedRoles: [Role.PRINCIPAL],
+    nextStatus: ApplicationStatus.PRINCIPAL_REVIEWED,
+    allowedDecisions: [ReviewDecision.APPROVED, ReviewDecision.REJECTED],
+  },
   [ApplicationStatus.REVIEWER_REVIEWED]: {
     allowedRoles: [Role.PRINCIPAL],
     nextStatus: ApplicationStatus.PRINCIPAL_REVIEWED,
@@ -109,6 +119,11 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
         throw new ForbiddenError('This application is not assigned to you');
       }
     }
+    if (user.role === Role.CHAIRMAN_REVIEWER) {
+      if (application.chairman_id !== user.id) {
+        throw new ForbiddenError('This application is not assigned to you');
+      }
+    }
 
     // Create review record
     const review = await prisma.review.create({
@@ -130,10 +145,15 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
 
     const updateData: any = { status: finalNextStatus };
     if (user.role === Role.REVIEWER) {
-      // If reviewer didn't explicitly edit individual entries, reviewer_score might be null.
-      // Set it to match the total_score to indicate they accepted the system scores.
-      if (application.reviewer_score === null) {
+      if (reviewer_score !== undefined && reviewer_score !== null) {
+        const rounded = Number(Number(reviewer_score).toFixed(1));
+        updateData.reviewer_score = rounded;
+        updateData.final_score = rounded;
+      } else if (application.reviewer_score !== null) {
+        updateData.final_score = application.reviewer_score;
+      } else {
         updateData.reviewer_score = application.total_score;
+        updateData.final_score = application.total_score;
       }
     }
 
@@ -146,6 +166,7 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
     const actionMap: Record<string, AuditAction> = {
       [Role.HOD]: AuditAction.APPLICATION_HOD_REVIEWED,
       [Role.REVIEWER]: AuditAction.APPLICATION_REVIEWER_REVIEWED,
+      [Role.CHAIRMAN_REVIEWER]: AuditAction.APPLICATION_CHAIRMAN_REVIEWED,
       [Role.PRINCIPAL]: AuditAction.APPLICATION_PRINCIPAL_REVIEWED,
     };
 
@@ -225,7 +246,7 @@ router.put('/:applicationId/entry/:categoryId/score', authorize(Role.REVIEWER), 
     }
 
     // No caps — section base values are multipliers, not ceilings
-    const newTotal = sectionTotals.teaching + sectionTotals.research + sectionTotals.service;
+    const newTotal = Number((sectionTotals.teaching + sectionTotals.research + sectionTotals.service).toFixed(1));
 
     // Update application total
     const updatedApp = await prisma.application.update({
@@ -241,6 +262,48 @@ router.put('/:applicationId/entry/:categoryId/score', authorize(Role.REVIEWER), 
         reviewer_score: updatedApp.reviewer_score,
         final_score: updatedApp.final_score,
         section_scores: sectionTotals
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── PUT /api/reviews/:applicationId/score — Update overall application reviewer score ──
+
+router.put('/:applicationId/score', authorize(Role.REVIEWER), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const applicationId = req.params.applicationId as string;
+    const { reviewer_score } = req.body;
+    const user = req.user!;
+
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application) throw new NotFoundError('Application');
+    if (application.reviewer_id !== user.id) throw new ForbiddenError('This application is not assigned to you');
+    if (application.status !== 'REVIEWER_ASSIGNED') throw new ValidationError('Application is not in REVIEWER_ASSIGNED status');
+
+    const newScore = reviewer_score === '' || reviewer_score === null || reviewer_score === undefined
+      ? null
+      : Number(Number(reviewer_score).toFixed(1));
+
+    const updatedApp = await prisma.application.update({
+      where: { id: applicationId },
+      data: {
+        reviewer_score: newScore,
+        final_score: newScore !== null ? newScore : application.total_score,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Overall reviewer score updated',
+      data: {
+        total_score: updatedApp.total_score,
+        reviewer_score: updatedApp.reviewer_score,
+        final_score: updatedApp.final_score,
       },
     });
   } catch (error) {

@@ -146,6 +146,9 @@ export const reviewsApi = {
 
   updateEntryScore: (appId: string, categoryId: string, reviewer_score: number | '') =>
     api.put(`/reviews/${appId}/entry/${categoryId}/score`, { reviewer_score }),
+
+  updateScore: (appId: string, reviewer_score: number | '') =>
+    api.put(`/reviews/${appId}/score`, { reviewer_score }),
 };
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
@@ -174,6 +177,9 @@ export const adminApi = {
 
   assignReviewer: (appId: string, reviewerId: string) =>
     api.post('/admin/assign-reviewer', { application_id: appId, reviewer_id: reviewerId }),
+
+  assignChairman: (appId: string, chairmanId: string) =>
+    api.post('/admin/assign-chairman', { application_id: appId, chairman_id: chairmanId }),
 
   forwardToPrincipal: (appId: string) =>
     api.post('/admin/forward-to-principal', { application_ids: [appId] }),

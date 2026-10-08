@@ -93,7 +93,8 @@ export default function DashboardPage() {
             {isHod && `Department Head Workspace • Monitor ${user.department?.name || 'Department'} appraisals and review faculty score submissions.`}
             {isPrincipal && 'Executive Principal Dashboard • Review institution performance, approve appraisals, and inspect analytics.'}
             {isAdmin && 'System Administrator Workspace • System configuration, scoring rules, user roles, and audit tracking.'}
-            {!isFaculty && !isHod && !isPrincipal && !isAdmin && 'Appraisal management workspace and review workflows.'}
+            {user.role === 'CHAIRMAN_REVIEWER' && 'Chairman Reviewer Workspace • Conduct apex committee appraisal reviews, evaluate peer reviews, and submit recommendations.'}
+            {!isFaculty && !isHod && !isPrincipal && !isAdmin && user.role !== 'CHAIRMAN_REVIEWER' && 'Appraisal management workspace and review workflows.'}
           </p>
         </div>
 
@@ -118,6 +119,29 @@ export default function DashboardPage() {
               }}
             >
               📊 Interactive Analytics & Graphs →
+            </button>
+          )}
+
+          {(user.role === 'REVIEWER' || user.role === 'CHAIRMAN_REVIEWER') && (
+            <button
+              type="button"
+              onClick={() => navigate('/reviews')}
+              style={{
+                background: user.role === 'CHAIRMAN_REVIEWER' ? '#ec4899' : '#f59e0b',
+                color: '#ffffff',
+                border: 'none',
+                padding: '12px 20px',
+                borderRadius: '10px',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              📋 {user.role === 'CHAIRMAN_REVIEWER' ? 'Chairman Reviews' : 'Assigned Reviews'} →
             </button>
           )}
 
@@ -244,6 +268,10 @@ export default function DashboardPage() {
                 <ActionCard title="Assigned Peer Reviews" desc="Evaluate assigned faculty appraisals and verify entries" icon="📋" color="#f59e0b" onClick={() => navigate('/reviews')} />
               )}
 
+              {user.role === 'CHAIRMAN_REVIEWER' && (
+                <ActionCard title="Chairman Assigned Reviews" desc="Evaluate reviewed faculty appraisals and submit recommendations" icon="🎖️" color="#ec4899" onClick={() => navigate('/reviews')} />
+              )}
+
               {user.role === 'ACCOUNTS' && (
                 <ActionCard title="Approved Increments" desc="Process financial increments & frozen appraisal reports" icon="💰" color="#6366f1" onClick={() => navigate('/accounts')} />
               )}
@@ -307,13 +335,24 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#f59e0b' }}>
-                          {app.total_score != null ? Number(app.total_score).toFixed(1) : '—'}
+                          {app.reviewer_score != null && Number(app.reviewer_score) !== Number(app.total_score) ? (
+                            <>
+                              <span title="Reviewer Score">{Number(app.reviewer_score).toFixed(1)}</span>{' '}
+                              <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
+                                {app.total_score != null ? Number(app.total_score).toFixed(1) : ''}
+                              </span>
+                            </>
+                          ) : (
+                            (app.reviewer_score ?? app.total_score) != null ? Number(app.reviewer_score ?? app.total_score).toFixed(1) : '—'
+                          )}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#ec4899' }}>
                           {app.bonus_score != null ? Number(app.bonus_score).toFixed(1) : '—'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
-                          {app.final_score != null ? Number(app.final_score).toFixed(1) : (app.total_score != null ? Number(app.total_score).toFixed(1) : '—')}
+                          {app.final_score != null 
+                            ? Number(app.final_score).toFixed(1) 
+                            : (app.reviewer_score != null ? Number(app.reviewer_score).toFixed(1) : (app.total_score != null ? Number(app.total_score).toFixed(1) : '—'))}
                         </td>
                       </tr>
                     ))}

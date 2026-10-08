@@ -26,6 +26,8 @@ const statusLabels: Record<string, string> = {
   HOD_REVIEWED: 'HOD Reviewed',
   REVIEWER_ASSIGNED: 'Reviewer Assigned',
   REVIEWER_REVIEWED: 'Reviewer Reviewed',
+  CHAIRMAN_ASSIGNED: 'Chairman Assigned',
+  CHAIRMAN_REVIEWED: 'Chairman Reviewed',
   PRINCIPAL_REVIEWED: 'Principal Reviewed',
   FROZEN: 'Frozen',
   SENT_TO_ACCOUNTS: 'Sent to Accounts',
@@ -306,7 +308,7 @@ export default function ReportsPage() {
         <div className="stat-card">
           <span className="stat-value">
             {applications.length > 0
-              ? (applications.reduce((s, a) => s + Number(a.total_score), 0) / applications.length).toFixed(1)
+              ? (applications.reduce((s, a) => s + Number(a.reviewer_score != null ? a.reviewer_score : (a.total_score || 0)), 0) / applications.length).toFixed(1)
               : '0'}
           </span>
           <span className="stat-label">Avg Score</span>

@@ -10,6 +10,7 @@ interface Application {
   status: string;
   total_score: number | null;
   reviewer_score?: number | null;
+  final_score?: number | null;
   faculty: {
     id: string;
     name: string;
@@ -37,9 +38,9 @@ export default function PrincipalDashboardPage() {
     setLoading(true);
     try {
       const res = await applicationsApi.list();
-      // Principal sees apps that have been reviewer-reviewed or already principal-reviewed
+      // Principal sees apps that have been chairman/reviewer-reviewed or already principal-reviewed
       const apps = (res.data.data.applications || []).filter((a: Application) =>
-        ['REVIEWER_REVIEWED', 'PRINCIPAL_REVIEWED', 'FROZEN', 'SENT_TO_ACCOUNTS'].includes(a.status)
+        ['CHAIRMAN_REVIEWED', 'REVIEWER_REVIEWED', 'PRINCIPAL_REVIEWED', 'FROZEN', 'SENT_TO_ACCOUNTS'].includes(a.status)
       );
       setApplications(apps);
     } catch (err) {
@@ -105,6 +106,9 @@ export default function PrincipalDashboardPage() {
   };
 
   const filtered = filterStatus === 'ALL' ? applications : applications.filter(a => {
+    if (filterStatus === 'AWAITING') {
+      return a.status === 'CHAIRMAN_REVIEWED' || a.status === 'REVIEWER_REVIEWED';
+    }
     if (filterStatus === 'PRINCIPAL_REVIEWED') {
       if (a.status !== 'PRINCIPAL_REVIEWED') return false;
       const latestReview = [...(a.reviews || [])].reverse().find((r: any) => r.role_at_review === 'PRINCIPAL');
@@ -119,7 +123,7 @@ export default function PrincipalDashboardPage() {
   });
 
   // Stats
-  const pending = applications.filter(a => a.status === 'REVIEWER_REVIEWED').length;
+  const pending = applications.filter(a => a.status === 'CHAIRMAN_REVIEWED' || a.status === 'REVIEWER_REVIEWED').length;
   const approved = applications.filter(a => {
     if (['FROZEN', 'SENT_TO_ACCOUNTS'].includes(a.status)) return true;
     if (a.status === 'PRINCIPAL_REVIEWED') {
@@ -129,7 +133,7 @@ export default function PrincipalDashboardPage() {
     return false;
   }).length;
   const avgScore = applications.length > 0
-    ? (applications.reduce((sum, a) => sum + (a.total_score ? Number(a.total_score) : 0), 0) / applications.length).toFixed(1)
+    ? (applications.reduce((sum, a) => sum + (a.reviewer_score != null ? Number(a.reviewer_score) : (a.total_score ? Number(a.total_score) : 0)), 0) / applications.length).toFixed(1)
     : '0.0';
 
   const columns = [
@@ -163,9 +167,9 @@ export default function PrincipalDashboardPage() {
       sortable: true,
       render: (row: Application) => (
         <span className="cell-score">
-          {row.reviewer_score !== null && row.reviewer_score !== undefined
+          {row.reviewer_score !== null && row.reviewer_score !== undefined && Number(row.reviewer_score) !== Number(row.total_score)
             ? <><span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Reviewer Score">{Number(row.reviewer_score).toFixed(1)}</span> <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">{row.total_score != null ? Number(row.total_score).toFixed(1) : ''}</span></>
-            : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—')}
+            : ((row.reviewer_score ?? row.total_score) != null ? Number(row.reviewer_score ?? row.total_score).toFixed(1) : '—')}
         </span>
       ),
     },
@@ -236,7 +240,9 @@ export default function PrincipalDashboardPage() {
       <div className="filter-bar">
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="ALL">All Statuses</option>
-          <option value="REVIEWER_REVIEWED">Awaiting Review</option>
+          <option value="AWAITING">Awaiting Review</option>
+          <option value="CHAIRMAN_REVIEWED">Chairman Done</option>
+          <option value="REVIEWER_REVIEWED">Peer Reviewer Done</option>
           <option value="PRINCIPAL_REVIEWED">Approved</option>
           <option value="PRINCIPAL_REJECTED">Rejected</option>
           <option value="FROZEN">Frozen</option>
@@ -282,12 +288,31 @@ export default function PrincipalDashboardPage() {
                       <span className="detail-value">{selectedApp.academic_year}</span>
                     </div>
                     <div className="detail-item">
-                      <span className="detail-label">System Score</span>
+                      <span className="detail-label">Original System Score</span>
                       <span className="detail-value score">{selectedApp.total_score != null ? Number(selectedApp.total_score).toFixed(1) : '—'}</span>
                     </div>
                     <div className="detail-item">
-                      <span className="detail-label">Reviewer Score</span>
-                      <span className="detail-value score">{selectedApp.reviewer_score != null ? Number(selectedApp.reviewer_score).toFixed(1) : '—'}</span>
+                      <span className="detail-label">Reviewer Score (New Score)</span>
+                      <span className="detail-value score" style={{ color: selectedApp.reviewer_score != null ? '#f59e0b' : undefined, fontWeight: 'bold' }}>
+                        {selectedApp.reviewer_score != null ? (
+                          <>
+                            {Number(selectedApp.reviewer_score).toFixed(1)}
+                            {Number(selectedApp.reviewer_score) !== Number(selectedApp.total_score) && (
+                              <span style={{ marginLeft: '6px', fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', borderRadius: '4px' }}>
+                                Updated
+                              </span>
+                            )}
+                          </>
+                        ) : '—'}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Final Active Score</span>
+                      <span className="detail-value score" style={{ color: '#10b981', fontWeight: 'bold' }}>
+                        {selectedApp.final_score != null 
+                          ? Number(selectedApp.final_score).toFixed(1) 
+                          : (selectedApp.reviewer_score != null ? Number(selectedApp.reviewer_score).toFixed(1) : (selectedApp.total_score != null ? Number(selectedApp.total_score).toFixed(1) : '—'))}
+                      </span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Status</span>
@@ -326,7 +351,7 @@ export default function PrincipalDashboardPage() {
                   )}
 
                   {/* Principal review form */}
-                  {selectedApp.status === 'REVIEWER_REVIEWED' && (
+                  {['CHAIRMAN_REVIEWED', 'REVIEWER_REVIEWED'].includes(selectedApp.status) && (
                     <div className="detail-section">
                       <h5>Your Review</h5>
                       <div className="form-group">
@@ -354,7 +379,7 @@ export default function PrincipalDashboardPage() {
                 </>
               )}
             </div>
-            {selectedApp.status === 'REVIEWER_REVIEWED' && (
+            {['CHAIRMAN_REVIEWED', 'REVIEWER_REVIEWED'].includes(selectedApp.status) && (
               <div className="modal-footer">
                 <button className="btn-secondary" onClick={() => setSelectedApp(null)}>Cancel</button>
                 <button

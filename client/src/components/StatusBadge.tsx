@@ -5,6 +5,8 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   HOD_REVIEWED:       { label: 'HOD Reviewed',      color: '#8b5cf6', bg: '#8b5cf615' },
   REVIEWER_ASSIGNED:  { label: 'Reviewer Assigned', color: '#f59e0b', bg: '#f59e0b15' },
   REVIEWER_REVIEWED:  { label: 'Reviewer Done',     color: '#06b6d4', bg: '#06b6d415' },
+  CHAIRMAN_ASSIGNED:  { label: 'Chairman Assigned', color: '#ec4899', bg: '#ec489915' },
+  CHAIRMAN_REVIEWED:  { label: 'Chairman Done',     color: '#8b5cf6', bg: '#8b5cf615' },
   PRINCIPAL_REVIEWED: { label: 'Principal Done',    color: '#a855f7', bg: '#a855f715' },
   FROZEN:             { label: 'Frozen',            color: '#10b981', bg: '#10b98115' },
   SENT_TO_ACCOUNTS:   { label: 'Sent to Accounts',  color: '#6366f1', bg: '#6366f115' },

@@ -38,7 +38,7 @@ router.get('/', authorize(Role.ADMIN, Role.PRINCIPAL, Role.HOD), async (req: Req
     if (status && status !== 'ALL') {
       const sStr = String(status);
       if (sStr === 'IN_REVIEW') {
-        appWhere.status = { in: ['HOD_REVIEWED', 'REVIEWER_ASSIGNED', 'REVIEWER_REVIEWED'] };
+        appWhere.status = { in: ['HOD_REVIEWED', 'REVIEWER_ASSIGNED', 'REVIEWER_REVIEWED', 'CHAIRMAN_ASSIGNED', 'CHAIRMAN_REVIEWED'] };
       } else if (sStr === 'APPROVED') {
         appWhere.status = { in: ['PRINCIPAL_REVIEWED', 'FROZEN', 'SENT_TO_ACCOUNTS'] };
       } else {
@@ -180,7 +180,7 @@ router.get('/', authorize(Role.ADMIN, Role.PRINCIPAL, Role.HOD), async (req: Req
       let appService = 0;
 
       app.category_entries.forEach(e => {
-        const score = Number(e.calculated_score || 0);
+        const score = Number(e.reviewer_score !== null && e.reviewer_score !== undefined ? e.reviewer_score : (e.calculated_score || 0));
         const slNo = e.category?.sl_no;
         const section = e.category?.section;
         const val = e.raw_value as Record<string, any>;

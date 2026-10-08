@@ -45,8 +45,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     } else if (user.role === Role.REVIEWER) {
       where.reviewer_id = user.id;
       where.status = { in: [ApplicationStatus.REVIEWER_ASSIGNED, ApplicationStatus.REVIEWER_REVIEWED] };
+    } else if (user.role === Role.CHAIRMAN_REVIEWER) {
+      where.chairman_id = user.id;
+      where.status = { in: [ApplicationStatus.CHAIRMAN_ASSIGNED, ApplicationStatus.CHAIRMAN_REVIEWED] };
     } else if (user.role === Role.PRINCIPAL) {
-      where.status = { in: [ApplicationStatus.REVIEWER_REVIEWED, ApplicationStatus.PRINCIPAL_REVIEWED, ApplicationStatus.FROZEN] };
+      where.status = { in: [ApplicationStatus.CHAIRMAN_REVIEWED, ApplicationStatus.REVIEWER_REVIEWED, ApplicationStatus.PRINCIPAL_REVIEWED, ApplicationStatus.FROZEN] };
     } else if (user.role === Role.ACCOUNTS) {
       where.status = ApplicationStatus.SENT_TO_ACCOUNTS;
     }
@@ -70,6 +73,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             select: { id: true, name: true, email: true, designation: true, department: { select: { id: true, name: true, code: true } } },
           },
           reviewer: { select: { id: true, name: true } },
+          chairman: { select: { id: true, name: true } },
           reviews: {
             include: { reviewer: { select: { id: true, name: true, role: true } } },
             orderBy: { reviewed_at: 'asc' },
@@ -206,6 +210,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
           select: { id: true, name: true, email: true, designation: true, department: { select: { id: true, name: true, code: true } } },
         },
         reviewer: { select: { id: true, name: true, email: true } },
+        chairman: { select: { id: true, name: true, email: true } },
         category_entries: {
           include: {
             category: { select: { id: true, sl_no: true, section: true, name: true, input_type: true, description: true, input_config: true } },
@@ -231,6 +236,9 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       throw new ForbiddenError('Cannot access application outside your department');
     }
     if (user.role === Role.REVIEWER && application.reviewer_id !== user.id) {
+      throw new ForbiddenError('This application is not assigned to you');
+    }
+    if (user.role === Role.CHAIRMAN_REVIEWER && application.chairman_id !== user.id) {
       throw new ForbiddenError('This application is not assigned to you');
     }
 

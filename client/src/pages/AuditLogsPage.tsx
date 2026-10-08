@@ -20,6 +20,8 @@ const ACTION_METADATA: Record<string, { icon: string; color: string; label: stri
   APPLICATION_REVIEWED: { icon: '✅', color: '#10b981', label: 'Application Reviewed' },
   APPLICATION_HOD_REVIEWED: { icon: '🏛️', color: '#3b82f6', label: 'HOD Reviewed' },
   APPLICATION_REVIEWER_REVIEWED: { icon: '🔍', color: '#8b5cf6', label: 'Peer Reviewer Reviewed' },
+  CHAIRMAN_ASSIGNED: { icon: '🔀', color: '#ec4899', label: 'Chairman Reviewer Assigned' },
+  APPLICATION_CHAIRMAN_REVIEWED: { icon: '🎖️', color: '#a855f7', label: 'Chairman Reviewer Reviewed' },
   APPLICATION_PRINCIPAL_REVIEWED: { icon: '👔', color: '#6366f1', label: 'Principal Reviewed' },
   REVIEWER_ASSIGNED: { icon: '🔀', color: '#f59e0b', label: 'Reviewer Assigned' },
   APPLICATION_FROZEN: { icon: '❄️', color: '#06b6d4', label: 'Application Frozen' },

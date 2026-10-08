@@ -8,6 +8,8 @@ interface Application {
   academic_year: string;
   status: string;
   total_score: number | null;
+  reviewer_score?: number | null;
+  final_score?: number | null;
   frozen_at: string | null;
   sent_to_accounts_at: string | null;
   faculty: {
@@ -53,8 +55,15 @@ export default function AccountsDashboardPage() {
     return true;
   });
 
+  const getAppScore = (a: Application) => {
+    if (a.reviewer_score != null) return Number(a.reviewer_score);
+    if (a.final_score != null) return Number(a.final_score);
+    if (a.total_score != null) return Number(a.total_score);
+    return 0;
+  };
+
   // Summary stats
-  const totalScore = filtered.reduce((sum, a) => sum + (a.total_score ? Number(a.total_score) : 0), 0);
+  const totalScore = filtered.reduce((sum, a) => sum + getAppScore(a), 0);
   const avgScore = filtered.length > 0 ? (totalScore / filtered.length).toFixed(1) : '0.0';
   const frozenCount = filtered.filter(a => a.status === 'FROZEN').length;
   const sentCount = filtered.filter(a => a.status === 'SENT_TO_ACCOUNTS').length;
@@ -66,7 +75,7 @@ export default function AccountsDashboardPage() {
       dept,
       count: deptApps.length,
       avgScore: deptApps.length > 0
-        ? (deptApps.reduce((s, a) => s + (a.total_score ? Number(a.total_score) : 0), 0) / deptApps.length).toFixed(1)
+        ? (deptApps.reduce((s, a) => s + getAppScore(a), 0) / deptApps.length).toFixed(1)
         : '0.0',
     };
   });
@@ -93,7 +102,24 @@ export default function AccountsDashboardPage() {
       header: 'Final Score',
       sortable: true,
       render: (row: Application) => (
-        <span className="cell-score">{row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}</span>
+        <span className="cell-score">
+          {row.reviewer_score != null && Number(row.reviewer_score) !== Number(row.total_score) ? (
+            <>
+              <span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Updated Reviewer Score">
+                {Number(row.reviewer_score).toFixed(1)}
+              </span>{' '}
+              <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
+                {row.total_score != null ? Number(row.total_score).toFixed(1) : ''}
+              </span>
+            </>
+          ) : (
+            row.reviewer_score != null
+              ? Number(row.reviewer_score).toFixed(1)
+              : (row.final_score != null 
+                  ? Number(row.final_score).toFixed(1) 
+                  : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—'))
+          )}
+        </span>
       ),
     },
     {

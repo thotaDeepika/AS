@@ -8,7 +8,10 @@ interface Application {
   academic_year: string;
   status: string;
   total_score: number | null;
+  reviewer_score?: number | null;
+  final_score?: number | null;
   reviewer_id: string | null;
+  chairman_id?: string | null;
   faculty: {
     id: string;
     name: string;
@@ -16,6 +19,7 @@ interface Application {
     department: { name: string; code: string };
   };
   reviewer?: { id: string; name: string; email: string } | null;
+  chairman?: { id: string; name: string; email: string } | null;
   reviews?: any[];
 }
 
@@ -30,6 +34,8 @@ interface Reviewer {
 export default function AssignReviewersPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
+  const [chairmanReviewers, setChairmanReviewers] = useState<Reviewer[]>([]);
+  const [assignMode, setAssignMode] = useState<'REVIEWER' | 'CHAIRMAN'>('REVIEWER');
   const [loading, setLoading] = useState(true);
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [selectedReviewerId, setSelectedReviewerId] = useState('');
@@ -53,13 +59,15 @@ export default function AssignReviewersPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [appsRes, usersRes, decisionsRes] = await Promise.all([
+      const [appsRes, usersRes, chairmenRes, decisionsRes] = await Promise.all([
         applicationsApi.list(),
         usersApi.list({ role: 'REVIEWER' }),
+        usersApi.list({ role: 'CHAIRMAN_REVIEWER' }),
         adminApi.approvalsRejections(),
       ]);
       setApplications(appsRes.data.data.applications || []);
       setReviewers(usersRes.data.data.users || []);
+      setChairmanReviewers(chairmenRes.data.data.users || []);
       setDecisionApps(decisionsRes.data.data.applications || []);
     } catch (err) {
       console.error(err);
@@ -77,8 +85,13 @@ export default function AssignReviewersPage() {
     if (!selectedAppId || !selectedReviewerId) return;
     setAssigning(true);
     try {
-      await adminApi.assignReviewer(selectedAppId, selectedReviewerId);
-      showToast('success', 'Reviewer assigned successfully');
+      if (assignMode === 'CHAIRMAN') {
+        await adminApi.assignChairman(selectedAppId, selectedReviewerId);
+        showToast('success', 'Chairman Reviewer assigned successfully');
+      } else {
+        await adminApi.assignReviewer(selectedAppId, selectedReviewerId);
+        showToast('success', 'Reviewer assigned successfully');
+      }
       setSelectedAppId(null);
       setSelectedReviewerId('');
       loadData();
@@ -173,29 +186,52 @@ export default function AssignReviewersPage() {
       },
     },
     {
-      key: 'total_score',
+      key: 'score',
       header: 'Score',
       sortable: true,
       render: (row: Application) => (
-        <span className="cell-score">{row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}</span>
+        <span className="cell-score">
+          {row.reviewer_score != null && Number(row.reviewer_score) !== Number(row.total_score) ? (
+            <>
+              <span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Updated Reviewer Score">
+                {Number(row.reviewer_score).toFixed(1)}
+              </span>{' '}
+              <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
+                {row.total_score != null ? Number(row.total_score).toFixed(1) : ''}
+              </span>
+            </>
+          ) : (
+            (row.reviewer_score ?? row.total_score) != null ? Number(row.reviewer_score ?? row.total_score).toFixed(1) : '—'
+          )}
+        </span>
       ),
     },
     {
       key: 'reviewer',
-      header: 'Assigned Reviewer',
-      render: (row: Application) =>
-        row.reviewer ? (
-          <span className="reviewer-chip">✓ {row.reviewer.name}</span>
-        ) : (
-          <span className="no-reviewer">— None</span>
-        ),
+      header: 'Assigned Reviewers',
+      render: (row: Application) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {row.reviewer ? (
+            <span className="reviewer-chip" title="Peer Reviewer">✓ {row.reviewer.name}</span>
+          ) : (
+            <span className="no-reviewer">— No Peer Reviewer</span>
+          )}
+          {row.chairman ? (
+            <span className="reviewer-chip" style={{ background: '#ec489918', color: '#ec4899', borderColor: '#ec489940' }} title="Chairman Reviewer">
+              🎖️ {row.chairman.name}
+            </span>
+          ) : (row.status === 'REVIEWER_REVIEWED' || row.status === 'CHAIRMAN_ASSIGNED' || row.status === 'CHAIRMAN_REVIEWED') ? (
+            <span className="no-reviewer" style={{ color: '#ec4899' }}>— No Chairman</span>
+          ) : null}
+        </div>
+      ),
     },
     {
       key: 'actions',
       header: '',
-      width: '200px',
+      width: '240px',
       render: (row: Application) => (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <a
             href={`/applications?id=${row.id}`}
             target="_blank"
@@ -206,8 +242,13 @@ export default function AssignReviewersPage() {
             👁️ View
           </a>
           {row.status === 'HOD_REVIEWED' && (
-            <button className="btn-small btn-accent" onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(row.reviewer_id || ''); }}>
-              🔀 {row.reviewer_id ? 'Reassign' : 'Assign'}
+            <button className="btn-small btn-accent" onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(row.reviewer_id || ''); setAssignMode('REVIEWER'); }}>
+              🔀 {row.reviewer_id ? 'Reassign' : 'Assign'} Reviewer
+            </button>
+          )}
+          {(row.status === 'REVIEWER_REVIEWED' || row.status === 'CHAIRMAN_ASSIGNED') && (
+            <button className="btn-small" style={{ background: '#ec4899', color: '#fff', border: 'none' }} onClick={() => { setSelectedAppId(row.id); setSelectedReviewerId(row.chairman_id || ''); setAssignMode('CHAIRMAN'); }}>
+              🎖️ {row.chairman_id ? 'Reassign' : 'Assign'} Chairman
             </button>
           )}
         </div>
@@ -241,7 +282,11 @@ export default function AssignReviewersPage() {
       header: 'Final Score',
       sortable: true,
       render: (row: any) => (
-        <span className="cell-score">{row.final_score != null ? Number(row.final_score).toFixed(1) : '—'}</span>
+        <span className="cell-score">
+          {row.final_score != null 
+            ? Number(row.final_score).toFixed(1) 
+            : (row.reviewer_score != null ? Number(row.reviewer_score).toFixed(1) : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—'))}
+        </span>
       ),
     },
     {
@@ -335,16 +380,18 @@ export default function AssignReviewersPage() {
               { status: 'HOD_REVIEWED', label: 'HOD Reviewed', color: '#3b82f6' },
               { status: 'REVIEWER_ASSIGNED', label: 'Reviewer Assigned', color: '#8b5cf6' },
               { status: 'REVIEWER_REVIEWED', label: 'Reviewer Done', color: '#6366f1' },
+              { status: 'CHAIRMAN_ASSIGNED', label: 'Chairman Assigned', color: '#ec4899' },
+              { status: 'CHAIRMAN_REVIEWED', label: 'Chairman Done', color: '#a855f7' },
               { status: 'PRINCIPAL_REVIEWED', label: 'Principal Done', color: '#10b981' },
               { status: 'FROZEN', label: 'Frozen', color: '#06b6d4' },
               { status: 'SENT_TO_ACCOUNTS', label: 'Accounts', color: '#14b8a6' },
-            ].map((step, i) => (
+            ].map((step, i, arr) => (
               <div key={step.status} className="pipeline-step">
                 <div className="pipeline-dot" style={{ background: step.color }}>
                   {statusCounts[step.status] || 0}
                 </div>
                 <span className="pipeline-label">{step.label}</span>
-                {i < 6 && <span className="pipeline-arrow">→</span>}
+                {i < arr.length - 1 && <span className="pipeline-arrow">→</span>}
               </div>
             ))}
           </div>
@@ -393,16 +440,20 @@ export default function AssignReviewersPage() {
         <div className="modal-overlay" onClick={() => setSelectedAppId(null)}>
           <div className="modal-content modal-sm" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Assign Reviewer</h3>
+              <h3>{assignMode === 'CHAIRMAN' ? 'Assign Chairman Reviewer' : 'Assign Reviewer'}</h3>
               <button className="modal-close" onClick={() => setSelectedAppId(null)}>✕</button>
             </div>
             <div className="modal-body">
-              <p className="modal-desc">Select a reviewer to evaluate this application:</p>
+              <p className="modal-desc">
+                {assignMode === 'CHAIRMAN'
+                  ? 'Select a Chairman Reviewer to evaluate this application:'
+                  : 'Select a reviewer to evaluate this application:'}
+              </p>
               <div className="form-group">
-                <label>Reviewer</label>
+                <label>{assignMode === 'CHAIRMAN' ? 'Chairman Reviewer' : 'Reviewer'}</label>
                 <select value={selectedReviewerId} onChange={e => setSelectedReviewerId(e.target.value)}>
-                  <option value="">Select a reviewer...</option>
-                  {reviewers.map(r => (
+                  <option value="">{assignMode === 'CHAIRMAN' ? 'Select a chairman reviewer...' : 'Select a reviewer...'}</option>
+                  {(assignMode === 'CHAIRMAN' ? chairmanReviewers : reviewers).map(r => (
                     <option key={r.id} value={r.id}>{r.name} ({r.email})</option>
                   ))}
                 </select>
@@ -410,8 +461,8 @@ export default function AssignReviewersPage() {
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setSelectedAppId(null)}>Cancel</button>
-              <button className="btn-primary" onClick={handleAssign} disabled={assigning || !selectedReviewerId}>
-                {assigning ? 'Assigning...' : 'Assign Reviewer'}
+              <button className="btn-primary" onClick={handleAssign} disabled={assigning || !selectedReviewerId} style={assignMode === 'CHAIRMAN' ? { background: '#ec4899', borderColor: '#db2777' } : undefined}>
+                {assigning ? 'Assigning...' : assignMode === 'CHAIRMAN' ? 'Assign Chairman' : 'Assign Reviewer'}
               </button>
             </div>
           </div>

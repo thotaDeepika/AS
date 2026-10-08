@@ -58,6 +58,7 @@ async function main() {
     { email: 'hod.cse@rit.edu', name: 'Dr. HOD CSE', role: Role.HOD, department_id: createdDepts['CSE'] },
     { email: 'faculty.cse@rit.edu', name: 'Dr. Faculty CSE', role: Role.FACULTY, department_id: createdDepts['CSE'], designation: Designation.ASSISTANT_PROFESSOR },
     { email: 'reviewer@rit.edu', name: 'Dr. Reviewer', role: Role.REVIEWER, department_id: null },
+    { email: 'chairman@rit.edu', name: 'Dr. Chairman Reviewer', role: Role.CHAIRMAN_REVIEWER, department_id: null },
     { email: 'accounts@rit.edu', name: 'Accounts Officer', role: Role.ACCOUNTS, department_id: null },
   ];
 

@@ -31,11 +31,12 @@ model User {
   joining_date     DateTime?
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
-  applications     Application[] @relation("FacultyApplications")
-  assigned_reviews Application[] @relation("ReviewerAssignments")
-  audit_logs       AuditLog[]
-  reviews          Review[]
-  department       Department?   @relation(fields: [department_id], references: [id])
+  applications              Application[] @relation("FacultyApplications")
+  assigned_reviews          Application[] @relation("ReviewerAssignments")
+  assigned_chairman_reviews Application[] @relation("ChairmanAssignments")
+  audit_logs                AuditLog[]
+  reviews                   Review[]
+  department                Department?   @relation(fields: [department_id], references: [id])
 
   @@map("users")
 }
@@ -62,10 +63,12 @@ model Application {
   submitted_at     DateTime?
   frozen_at        DateTime?
   reviewer_id      String?
+  chairman_id      String?
   created_at       DateTime          @default(now())
   updated_at       DateTime          @updatedAt
   faculty          User              @relation("FacultyApplications", fields: [faculty_id], references: [id])
   reviewer         User?             @relation("ReviewerAssignments", fields: [reviewer_id], references: [id])
+  chairman         User?             @relation("ChairmanAssignments", fields: [chairman_id], references: [id])
   category_entries CategoryEntry[]
   reviews          Review[]
 
@@ -168,6 +171,7 @@ enum Role {
   FACULTY
   HOD
   REVIEWER
+  CHAIRMAN_REVIEWER
   PRINCIPAL
   ADMIN
   ACCOUNTS
@@ -186,6 +190,8 @@ enum ApplicationStatus {
   HOD_REVIEWED
   REVIEWER_ASSIGNED
   REVIEWER_REVIEWED
+  CHAIRMAN_ASSIGNED
+  CHAIRMAN_REVIEWED
   PRINCIPAL_REVIEWED
   FROZEN
   SENT_TO_ACCOUNTS
@@ -215,6 +221,8 @@ enum AuditAction {
   SCORING_CONFIG_UPDATED
   APPLICATION_HOD_REVIEWED
   APPLICATION_REVIEWER_REVIEWED
+  CHAIRMAN_ASSIGNED
+  APPLICATION_CHAIRMAN_REVIEWED
   APPLICATION_PRINCIPAL_REVIEWED
   STATUS_CHANGED
 }

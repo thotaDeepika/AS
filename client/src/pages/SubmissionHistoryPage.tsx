@@ -56,7 +56,18 @@ export default function SubmissionHistoryPage() {
                 <tr key={app.id}>
                   <td>{app.academic_year}</td>
                   <td><StatusBadge status={app.status} size="sm" facultyView /></td>
-                  <td>{app.total_score != null ? Number(app.total_score).toFixed(1) : '—'}</td>
+                  <td>
+                    {app.reviewer_score != null && Number(app.reviewer_score) !== Number(app.total_score) ? (
+                      <>
+                        <span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Updated Reviewer Score">{Number(app.reviewer_score).toFixed(1)}</span>{' '}
+                        <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
+                          {app.total_score != null ? Number(app.total_score).toFixed(1) : ''}
+                        </span>
+                      </>
+                    ) : (
+                      (app.reviewer_score ?? app.total_score) != null ? Number(app.reviewer_score ?? app.total_score).toFixed(1) : '—'
+                    )}
+                  </td>
                   <td>{app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}</td>
                   <td>
                     <button 

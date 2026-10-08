@@ -23,6 +23,7 @@ interface CategoryEntry {
   category_id: string;
   raw_value: Record<string, any>;
   calculated_score: number | null;
+  reviewer_score?: number | null;
   category: Category;
   proof_documents: any[];
 }
@@ -33,6 +34,7 @@ interface Application {
   status: string;
   total_score: number | null;
   bonus_score?: number | null;
+  reviewer_score?: number | null;
   final_score: number | null;
   submitted_at: string | null;
   created_at: string;
@@ -57,7 +59,7 @@ function calculateSectionScores(entries: CategoryEntry[], _maxes: Record<string,
   let research = 0;
   let service = 0;
   for (const entry of entries) {
-    const score = Number(entry.calculated_score || 0);
+    const score = Number(entry.reviewer_score !== null && entry.reviewer_score !== undefined ? entry.reviewer_score : (entry.calculated_score || 0));
     if (entry.category?.section === 'TEACHING') teaching += score;
     else if (entry.category?.section === 'RESEARCH') research += score;
     else if (entry.category?.section === 'SERVICE') service += score;
@@ -121,7 +123,7 @@ export default function ApplicationsPage() {
     if (user && user.role !== 'FACULTY' && !urlId) {
       if (user.role === 'PRINCIPAL') {
         navigate('/principal-review', { replace: true });
-      } else if (user.role === 'HOD' || user.role === 'REVIEWER') {
+      } else if (user.role === 'HOD' || user.role === 'REVIEWER' || user.role === 'CHAIRMAN_REVIEWER') {
         navigate('/reviews', { replace: true });
       } else if (user.role === 'ADMIN') {
         navigate('/assign-reviewers', { replace: true });
@@ -358,6 +360,21 @@ export default function ApplicationsPage() {
         </div>
       )}
 
+      {application?.reviewer_score !== null && application?.reviewer_score !== undefined && Number(application.reviewer_score) !== Number(application.total_score) && (
+        <div style={{ marginBottom: '1.5rem', padding: '12px 18px', borderRadius: '8px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#b45309', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '1.4rem' }}>✏️</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Reviewer Evaluated Score: {Number(application.reviewer_score).toFixed(1)}</div>
+            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+              The reviewer has evaluated this application and updated the score
+              {application.total_score != null && (
+                <> (original preliminary score was {Number(application.total_score).toFixed(1)})</>
+              )}.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Application Header */}
       <div className="app-header-card">
         <div className="app-header-info">
@@ -399,9 +416,17 @@ export default function ApplicationsPage() {
             <ScoreCard label="Teaching" score={scoreTotals?.teaching ?? currentTotals?.teaching ?? 0} color="#3b82f6" size="sm" />
             <ScoreCard label="Research" score={scoreTotals?.research ?? currentTotals?.research ?? 0} color="#8b5cf6" size="sm" />
             <ScoreCard label="Service" score={scoreTotals?.service ?? currentTotals?.service ?? 0} color="#10b981" size="sm" />
-            <ScoreCard label="Total Score" score={scoreTotals?.total ?? application.total_score ?? currentTotals?.total ?? 0} color="#f59e0b" />
+            <ScoreCard 
+              label="Total Score" 
+              score={scoreTotals?.total ?? (application.reviewer_score != null ? Number(application.reviewer_score) : (application.total_score ?? currentTotals?.total ?? 0))} 
+              color="#f59e0b" 
+            />
             <ScoreCard label="* Bonus Score" score={scoreTotals?.bonus ?? application.bonus_score ?? 0} color="#ec4899" />
-            <ScoreCard label="Final Score" score={scoreTotals?.finalScore ?? application.final_score ?? 0} color="#10b981" />
+            <ScoreCard 
+              label="Final Score" 
+              score={scoreTotals?.finalScore ?? (application.final_score != null ? Number(application.final_score) : (application.reviewer_score != null ? Number(application.reviewer_score) : (application.total_score ?? 0)))} 
+              color="#10b981" 
+            />
           </div>
 
           {/* Upload Storage Quota & Limits Bar */}
@@ -1649,8 +1674,21 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           <h4>{category.name}</h4>
           {category.description && <p className="category-desc">{category.description}</p>}
         </div>
-        {entry?.calculated_score !== null && entry?.calculated_score !== undefined && (
-          <span className="category-score">Score: {Number(entry.calculated_score).toFixed(1)}</span>
+        {entry && (
+          <span className="category-score">
+            {entry.reviewer_score !== null && entry.reviewer_score !== undefined && Number(entry.reviewer_score) !== Number(entry.calculated_score) ? (
+              <>
+                Score: <strong style={{ color: '#f59e0b' }}>{Number(entry.reviewer_score).toFixed(1)}</strong>{' '}
+                <span style={{ textDecoration: 'line-through', fontSize: '0.85em', color: '#94a3b8' }}>
+                  {entry.calculated_score != null ? Number(entry.calculated_score).toFixed(1) : ''}
+                </span>
+              </>
+            ) : (
+              entry.calculated_score !== null && entry.calculated_score !== undefined && (
+                <>Score: {Number(entry.calculated_score).toFixed(1)}</>
+              )
+            )}
+          </span>
         )}
       </div>
 
