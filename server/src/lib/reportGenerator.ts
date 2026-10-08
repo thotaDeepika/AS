@@ -342,7 +342,14 @@ export async function generateAppraisalPDF(applicationId: string, userRole: stri
     for (const docInfo of entry.proof_documents) {
       if (docInfo.file_path && docInfo.file_name.toLowerCase().endsWith('.pdf')) {
         try {
-          const docPath = path.join(process.cwd(), docInfo.file_path);
+          // Resolve against UPLOAD_DIR, the single source of truth for where
+          // uploads live (same logic as the delete route in routes/applications).
+          // Joining onto process.cwd() only worked while UPLOAD_DIR happened to
+          // resolve to <cwd>/uploads; it broke once it pointed at the mounted volume.
+          const relativePath = docInfo.file_path.startsWith('/uploads/')
+            ? docInfo.file_path.replace('/uploads/', '')
+            : docInfo.file_path;
+          const docPath = path.resolve(process.env.UPLOAD_DIR || './uploads', relativePath);
           const attachedPdfBytes = await fs.readFile(docPath);
           const attachedPdf = await PDFLibDoc.load(attachedPdfBytes);
           const copiedPages = await mergedPdf.copyPages(attachedPdf, attachedPdf.getPageIndices());

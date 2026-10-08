@@ -54,12 +54,12 @@ async function main() {
 
   const users = [
     { email: 'admin_appraisal@msrit.edu', name: 'System Admin', role: Role.ADMIN, department_id: null, _custom_password: adminPassword },
-    { email: 'principal@rit.edu', name: 'Dr. Principal', role: Role.PRINCIPAL, department_id: null },
-    { email: 'hod.cse@rit.edu', name: 'Dr. HOD CSE', role: Role.HOD, department_id: createdDepts['CSE'] },
-    { email: 'faculty.cse@rit.edu', name: 'Dr. Faculty CSE', role: Role.FACULTY, department_id: createdDepts['CSE'], designation: Designation.ASSISTANT_PROFESSOR },
-    { email: 'reviewer@rit.edu', name: 'Dr. Reviewer', role: Role.REVIEWER, department_id: null },
-    { email: 'chairman@rit.edu', name: 'Dr. Chairman Reviewer', role: Role.CHAIRMAN_REVIEWER, department_id: null },
-    { email: 'accounts@rit.edu', name: 'Accounts Officer', role: Role.ACCOUNTS, department_id: null },
+    { email: 'principal@msrit.edu', name: 'Dr. Principal', role: Role.PRINCIPAL, department_id: null },
+    { email: 'hod_cs@msrit.edu', name: 'Dr. HOD CSE', role: Role.HOD, department_id: createdDepts['CSE'] },
+    { email: 'faculty.cse@msrit.edu', name: 'Dr. Faculty CSE', role: Role.FACULTY, department_id: createdDepts['CSE'], designation: Designation.ASSISTANT_PROFESSOR },
+    { email: 'reviewer@msrit.edu', name: 'Dr. Reviewer', role: Role.REVIEWER, department_id: null },
+    { email: 'chairman@msrit.edu', name: 'Dr. Chairman Reviewer', role: Role.CHAIRMAN_REVIEWER, department_id: null },
+    { email: 'accounts@msrit.edu', name: 'Accounts Officer', role: Role.ACCOUNTS, department_id: null },
   ];
 
   for (const user of users) {

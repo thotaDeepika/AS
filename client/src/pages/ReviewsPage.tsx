@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { applicationsApi, reviewsApi, getFileUrl } from '../lib/api';
+import { DynamicCategoryTable } from '../components/DynamicCategoryTable';
+import { CATEGORY_COLUMNS } from '../lib/constants';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import ScoreCard from '../components/ScoreCard';
@@ -20,6 +22,16 @@ interface Application {
   };
   _count: { category_entries: number; reviews: number };
   reviews?: any[];
+}
+
+// Keys under which the application form stores a category's table rows
+// (see ApplicationsPage: fci_entries / publications / items / records).
+const ROW_KEYS = ['publications', 'items', 'records', 'fci_entries'];
+function getEntryRows(raw: Record<string, any> | null | undefined): { key: string | null; rows: any[] | null } {
+  if (!raw) return { key: null, rows: null };
+  for (const k of ROW_KEYS) if (Array.isArray(raw[k])) return { key: k, rows: raw[k] };
+  const found = Object.entries(raw).find(([, v]) => Array.isArray(v) && v.some(x => x && typeof x === 'object'));
+  return found ? { key: found[0], rows: found[1] as any[] } : { key: null, rows: null };
 }
 
 export default function ReviewsPage() {
@@ -359,9 +371,30 @@ export default function ReviewsPage() {
                   )}
                 </span>
               </div>
+              {(() => {
+                const { key: rowsKey, rows } = getEntryRows(entry.raw_value);
+                // Row-level proofs appear in the table's Document column; only
+                // entry-level ones (no item_index) are listed separately below.
+                const looseDocs = rows
+                  ? (entry.proof_documents || []).filter((d: any) => d.item_index === null || d.item_index === undefined)
+                  : (entry.proof_documents || []);
+                return (<>
+              {rows && (
+                <DynamicCategoryTable
+                  sl={entry.category.sl_no}
+                  columns={entry.category.input_config?.columns || CATEGORY_COLUMNS[entry.category.sl_no] || []}
+                  data={rows}
+                  isDraft={false}
+                  onAddRow={() => {}}
+                  onRemoveRow={() => {}}
+                  onChange={() => {}}
+                  proofs={entry.proof_documents || []}
+                  emptyText="No entries"
+                />
+              )}
               <div className="entry-values">
                 {Object.entries(entry.raw_value || {}).map(([key, val]) => {
-                  if (key.startsWith('item_desc_')) return null;
+                  if (key.startsWith('item_desc_') || key === rowsKey) return null;
 
                   let displayVal: React.ReactNode = String(val);
                   let isBlock = false;
@@ -397,15 +430,17 @@ export default function ReviewsPage() {
                   );
                 })}
               </div>
-              {entry.proof_documents?.length > 0 && (
+              {looseDocs.length > 0 && (
                 <div className="entry-docs">
-                  {entry.proof_documents.map((doc: any) => (
+                  {looseDocs.map((doc: any) => (
                     <a key={doc.id} href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" className="doc-chip" style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block' }}>
                       📄 {doc.file_name}
                     </a>
                   ))}
                 </div>
               )}
+                </>);
+              })()}
             </div>
           ))}
         </div>

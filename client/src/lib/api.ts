@@ -49,7 +49,10 @@ export const getFileUrl = (filePath: string) => {
   if (!filePath) return '';
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
   const normalized = filePath.replace(/\\/g, '/');
-  return `/${normalized}`;
+  // Stored paths already start with "/uploads/...". Prepending another "/" made
+  // "//uploads/...", a protocol-relative URL whose *host* is "uploads" — so the
+  // browser dropped the server hostname entirely. Only add a slash if missing.
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
 };
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────

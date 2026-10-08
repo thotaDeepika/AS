@@ -13,7 +13,7 @@ async function test() {
   const loginRes = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@rit.edu', password: 'Admin@123' }),
+    body: JSON.stringify({ email: 'admin_appraisal@msrit.edu', password: 'Admin@MSRIT2026' }),
   });
   const loginData = await loginRes.json();
   console.log(`   ✅ Status: ${loginRes.status} | Token: ${loginData.data?.token ? 'received' : 'MISSING'}`);
@@ -48,7 +48,7 @@ async function test() {
   const facLoginRes = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'faculty.cse@rit.edu', password: 'Admin@123' }),
+    body: JSON.stringify({ email: 'faculty.cse@msrit.edu', password: 'Admin@123' }),
   });
   const facData = await facLoginRes.json();
   const facToken = facData.data?.token;

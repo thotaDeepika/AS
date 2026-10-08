@@ -103,12 +103,12 @@ cd client && npm run dev    # Frontend on :5173
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@rit.edu | Admin@123 |
-| Principal | principal@rit.edu | Admin@123 |
-| HOD (CSE) | hod.cse@rit.edu | Admin@123 |
-| Faculty (CSE) | faculty.cse@rit.edu | Admin@123 |
-| Reviewer | reviewer@rit.edu | Admin@123 |
-| Accounts | accounts@rit.edu | Admin@123 |
+| Admin | admin_appraisal@msrit.edu | Admin@MSRIT2026 |
+| Principal | principal@msrit.edu | Admin@123 |
+| HOD (CSE) | hod_cs@msrit.edu | Admin@123 |
+| Faculty (CSE) | faculty.cse@msrit.edu | Admin@123 |
+| Reviewer | reviewer@msrit.edu | Admin@123 |
+| Accounts | accounts@msrit.edu | Admin@123 |
 
 > ⚠️ **Change all default passwords immediately after first login.**
 
@@ -121,7 +121,7 @@ cd client && npm run dev    # Frontend on :5173
 ```nginx
 server {
     listen 80;
-    server_name appraisal.rit.edu;
+    server_name appraisal.msrit.edu;
 
     # Frontend (static build)
     location / {

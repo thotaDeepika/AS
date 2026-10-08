@@ -7,7 +7,7 @@ dotenv.config({ path: '../.env' });
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'test.faculty@rit.edu';
+  const email = 'test.faculty@msrit.edu';
   const name = 'Dr. Test Faculty';
   const password = 'Password@123';
   

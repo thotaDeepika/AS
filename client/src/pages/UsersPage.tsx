@@ -302,7 +302,7 @@ export default function UsersPage() {
                     type="email"
                     value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
-                    placeholder="user@rit.edu"
+                    placeholder="user@msrit.edu"
                   />
                 </div>
               )}
