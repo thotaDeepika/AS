@@ -1675,20 +1675,16 @@ function CategoryFormItem({ category, entry, isDraft, saving, uploading, onSave,
           {category.description && <p className="category-desc">{category.description}</p>}
         </div>
         {entry && (
-          <span className="category-score">
-            {entry.reviewer_score !== null && entry.reviewer_score !== undefined && Number(entry.reviewer_score) !== Number(entry.calculated_score) ? (
-              <>
-                Score: <strong style={{ color: '#f59e0b' }}>{Number(entry.reviewer_score).toFixed(1)}</strong>{' '}
-                <span style={{ textDecoration: 'line-through', fontSize: '0.85em', color: '#94a3b8' }}>
-                  {entry.calculated_score != null ? Number(entry.calculated_score).toFixed(1) : ''}
-                </span>
-              </>
-            ) : (
-              entry.calculated_score !== null && entry.calculated_score !== undefined && (
-                <>Score: {Number(entry.calculated_score).toFixed(1)}</>
-              )
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.82rem', padding: '3px 8px', borderRadius: '4px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+              Original: <strong>{entry.calculated_score != null ? Number(entry.calculated_score).toFixed(1) : '—'}</strong>
+            </span>
+            {entry.reviewer_score !== null && entry.reviewer_score !== undefined && (
+              <span style={{ fontSize: '0.82rem', padding: '3px 8px', borderRadius: '4px', background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
+                Reviewer: <strong>{Number(entry.reviewer_score).toFixed(1)}</strong>
+              </span>
             )}
-          </span>
+          </div>
         )}
       </div>
 

@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   { path: '/assign-reviewers', label: 'Assign Reviewers', icon: '🔀', roles: ['ADMIN'] },
   { path: '/principal-review', label: 'Principal Review', icon: '👔', roles: ['PRINCIPAL'] },
   { path: '/accounts', label: 'Accounts', icon: '💰', roles: ['ACCOUNTS'] },
-  { path: '/reports', label: 'Reports', icon: '📋', roles: ['ADMIN', 'PRINCIPAL', 'ACCOUNTS'] },
+  { path: '/reports', label: 'Reports', icon: '📋', roles: ['ADMIN', 'PRINCIPAL', 'ACCOUNTS', 'HOD'] },
   { path: '/audit-logs', label: 'Audit Logs', icon: '🔍', roles: ['ADMIN'] },
 ];
 

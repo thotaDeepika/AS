@@ -13,12 +13,13 @@ The appraisal application follows a **strict forward-only sequential workflow**.
 | 1 | `DRAFT` | Faculty | Application created, not yet submitted |
 | 2 | `SUBMITTED` | Faculty | Faculty submits form; scores calculated on backend |
 | 3 | `HOD_REVIEWED` | HOD | HOD has reviewed (recommended or not recommended) |
-| 4 | `REVIEWER_ASSIGNED` | Admin | Admin assigns a reviewer from any department |
-| 5 | `REVIEWER_REVIEWED` | Reviewer | Reviewer has verified (recommended or not recommended) |
-| 6 | `PRINCIPAL_REVIEWED` | Principal | Principal has reviewed (APPROVED or REJECTED) |
-| 7 | `FROZEN` | Principal/Admin | Approved application is frozen (immutable) |
-| 8 | `SENT_TO_ACCOUNTS` | Admin | Frozen application sent to accounts for processing |
-| 9 | `REVERTED` | HOD/Admin | Reverted back to Faculty for editing and resubmitting |
+| 4 | `REVIEWER_ASSIGNED` | Admin | Admin assigns a peer reviewer from any department |
+| 5 | `CHAIRMAN_ASSIGNED` | Reviewer (Auto) | Peer reviewer completes review; automatically forwarded to Chairman Reviewer |
+| 6 | `CHAIRMAN_REVIEWED` | Chairman Reviewer | Chairman Reviewer has verified (recommended or not recommended) |
+| 7 | `PRINCIPAL_REVIEWED` | Principal | Principal has reviewed (APPROVED or REJECTED) |
+| 8 | `FROZEN` | Principal/Admin | Approved application is frozen (immutable) |
+| 9 | `SENT_TO_ACCOUNTS` | Admin | Frozen application sent to accounts for processing |
+| 10 | `REVERTED` | HOD/Admin | Reverted back to Faculty for editing and resubmitting |
 
 ## Review Decision (Enum — stored per review action)
 
@@ -28,6 +29,7 @@ RECOMMENDED | NOT_RECOMMENDED | APPROVED | REJECTED | REVERTED
 
 - HOD uses: `RECOMMENDED` / `NOT_RECOMMENDED` / `REVERTED`
 - Reviewer uses: `RECOMMENDED` / `NOT_RECOMMENDED`
+- Chairman Reviewer uses: `RECOMMENDED` / `NOT_RECOMMENDED`
 - Principal uses: `APPROVED` / `REJECTED`
 - Admin uses: `REVERTED` (through Admin override options)
 
@@ -51,42 +53,42 @@ SUBMITTED → HOD_REVIEWED or REVERTED
 - HOD sees all submitted applications from their department
 - Verifies uploaded proofs against claimed values
 - Adds comments
-- Marks as `RECOMMENDED` or `NOT_RECOMMENDED` (application moves to Admin's queue) OR `REVERTED` (application goes back to `REVERTED` status for Faculty to edit and resubmit).
+- Marks as `RECOMMENDED` or `NOT_RECOMMENDED` (application moves to Admin's reviewer assignment queue) OR `REVERTED` (application goes back to `REVERTED` status for Faculty to edit and resubmit).
 
-### Step 3: Admin Routes to Reviewer
+### Step 3: Admin Routes to Peer Reviewer
 ```
 HOD_REVIEWED → REVIEWER_ASSIGNED
 ```
 - Admin views all HOD-reviewed applications
-- Assigns a reviewer (can be a faculty from any department)
+- Assigns a peer reviewer (can be a faculty from any department)
 - Application appears in assigned Reviewer's dashboard
 
-### Step 4: Reviewer Verification
+### Step 4: Peer Reviewer Verification & Automated Forwarding
 ```
-REVIEWER_ASSIGNED → REVIEWER_REVIEWED
+REVIEWER_ASSIGNED → CHAIRMAN_ASSIGNED (Automatic)
 ```
-- Reviewer verifies the application content and proofs
-- Cross-checks HOD's recommendation
-- Adds comments
+- Peer Reviewer verifies application content, scores, and proofs
+- Can override entry scores or overall reviewer score
 - Marks as `RECOMMENDED` or `NOT_RECOMMENDED`
-- Application returns to Admin's queue
+- **Automated Forwarding:** Application is automatically forwarded to the Chairman Reviewer (`CHAIRMAN_ASSIGNED`), and the Chairman Reviewer is auto-assigned and notified via email. Admin intervention/forwarding is not required.
 
-### Step 5: Admin Routes to Principal
+### Step 5: Chairman Reviewer Evaluation
 ```
-REVIEWER_REVIEWED → (Admin forwards) → PRINCIPAL_REVIEWED
+CHAIRMAN_ASSIGNED → CHAIRMAN_REVIEWED
 ```
-- Admin forwards reviewer-verified applications to Principal
-- No state change until Principal acts
+- Chairman Reviewer reviews peer reviewer's inputs, scores, and faculty proofs
+- Adds apex committee remarks and sets decision (`RECOMMENDED` / `NOT_RECOMMENDED`)
+- Application moves directly into Principal's review queue.
 
 ### Step 6: Principal Final Decision
 ```
-REVIEWER_REVIEWED → PRINCIPAL_REVIEWED (APPROVED / REJECTED) → FROZEN (if approved)
+CHAIRMAN_REVIEWED → PRINCIPAL_REVIEWED (APPROVED / REJECTED) → FROZEN (if approved)
 ```
-- Principal reviews the full application trail (faculty data, HOD comments, reviewer comments)
-- Adds final comments
+- Principal reviews the full evaluation trail (faculty data, HOD comments, peer reviewer comments, chairman reviewer comments)
+- Adds final remarks
 - Sets final decision: `APPROVED` or `REJECTED`
-- If approved -> application is subsequently frozen via Admin override or automatically (`FROZEN` - immutable, cannot be reopened).
-- If rejected -> Principal's decision is recorded, and the application remains in `PRINCIPAL_REVIEWED` status but flagged as rejected (Admin can later allow edits or override if needed).
+- If approved -> application is subsequently frozen (`FROZEN` - immutable).
+- If rejected -> Principal's decision is recorded, and the application remains in `PRINCIPAL_REVIEWED` status flagged as rejected.
 
 ### Step 7: Accounts Processing
 ```

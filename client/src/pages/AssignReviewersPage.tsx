@@ -186,22 +186,27 @@ export default function AssignReviewersPage() {
       },
     },
     {
-      key: 'score',
-      header: 'Score',
+      key: 'original_score',
+      header: 'Original Score',
+      sortable: true,
+      render: (row: Application) => (
+        <span className="cell-score" style={{ color: '#2563eb', fontWeight: 600 }}>
+          {row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'reviewer_score',
+      header: 'Reviewer Score',
       sortable: true,
       render: (row: Application) => (
         <span className="cell-score">
-          {row.reviewer_score != null && Number(row.reviewer_score) !== Number(row.total_score) ? (
-            <>
-              <span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Updated Reviewer Score">
-                {Number(row.reviewer_score).toFixed(1)}
-              </span>{' '}
-              <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
-                {row.total_score != null ? Number(row.total_score).toFixed(1) : ''}
-              </span>
-            </>
+          {row.reviewer_score != null ? (
+            <span style={{ color: '#d97706', fontWeight: 700 }}>
+              {Number(row.reviewer_score).toFixed(1)}
+            </span>
           ) : (
-            (row.reviewer_score ?? row.total_score) != null ? Number(row.reviewer_score ?? row.total_score).toFixed(1) : '—'
+            <span style={{ color: '#94a3b8' }}>—</span>
           )}
         </span>
       ),
@@ -373,6 +378,25 @@ export default function AssignReviewersPage() {
 
       {activeTab === 'workflow' ? (
         <>
+          {/* Automated Forwarding Info Badge */}
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.08), rgba(99, 102, 241, 0.08))',
+            border: '1px solid rgba(236, 72, 153, 0.25)',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '0.86rem',
+            color: 'var(--text-primary)'
+          }}>
+            <span style={{ fontSize: '1.2rem' }}>⚡</span>
+            <div>
+              <strong>Automated Forwarding:</strong> Once a Peer Reviewer completes their review, applications automatically advance to the <strong>Chairman Reviewer</strong> with the Chairman assigned. Admin manual forwarding is not required.
+            </div>
+          </div>
+
           {/* Workflow Pipeline */}
           <div className="workflow-pipeline">
             {[

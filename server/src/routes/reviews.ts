@@ -6,6 +6,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors.js';
 import { upload } from '../lib/upload.js';
 import supabase from '../lib/supabase.js';
+import { sendEmail } from '../lib/email.js';
 
 const router = Router();
 router.use(authenticate);
@@ -16,6 +17,7 @@ const reviewSchema = z.object({
   decision: z.enum(['RECOMMENDED', 'NOT_RECOMMENDED', 'APPROVED', 'REJECTED', 'REVERTED']),
   comments: z.string().max(2000).optional(),
   reviewer_score: z.number().min(0).max(1000).optional(),
+  final_score: z.number().min(0).max(1000).optional(),
   signature_path: z.string().optional(),
 });
 
@@ -28,7 +30,7 @@ const WORKFLOW_TRANSITIONS: Record<string, { allowedRoles: Role[]; nextStatus: A
   },
   [ApplicationStatus.REVIEWER_ASSIGNED]: {
     allowedRoles: [Role.REVIEWER],
-    nextStatus: ApplicationStatus.REVIEWER_REVIEWED,
+    nextStatus: ApplicationStatus.CHAIRMAN_ASSIGNED, // Automatically moves to Chairman Reviewer
     allowedDecisions: [ReviewDecision.RECOMMENDED, ReviewDecision.NOT_RECOMMENDED],
   },
   [ApplicationStatus.CHAIRMAN_ASSIGNED]: {
@@ -42,9 +44,9 @@ const WORKFLOW_TRANSITIONS: Record<string, { allowedRoles: Role[]; nextStatus: A
     allowedDecisions: [ReviewDecision.APPROVED, ReviewDecision.REJECTED],
   },
   [ApplicationStatus.REVIEWER_REVIEWED]: {
-    allowedRoles: [Role.PRINCIPAL],
-    nextStatus: ApplicationStatus.PRINCIPAL_REVIEWED,
-    allowedDecisions: [ReviewDecision.APPROVED, ReviewDecision.REJECTED],
+    allowedRoles: [Role.CHAIRMAN_REVIEWER, Role.PRINCIPAL],
+    nextStatus: ApplicationStatus.CHAIRMAN_REVIEWED,
+    allowedDecisions: [ReviewDecision.RECOMMENDED, ReviewDecision.NOT_RECOMMENDED, ReviewDecision.APPROVED, ReviewDecision.REJECTED],
   },
 };
 
@@ -82,7 +84,7 @@ router.post('/upload-signature', upload.single('file'), async (req: Request, res
 
 router.post('/:applicationId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { decision, comments, reviewer_score, signature_path } = reviewSchema.parse(req.body);
+    const { decision, comments, reviewer_score, final_score, signature_path } = reviewSchema.parse(req.body);
     const user = req.user!;
 
     const application = await prisma.application.findUnique({
@@ -120,7 +122,7 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
       }
     }
     if (user.role === Role.CHAIRMAN_REVIEWER) {
-      if (application.chairman_id !== user.id) {
+      if (application.chairman_id && application.chairman_id !== user.id) {
         throw new ForbiddenError('This application is not assigned to you');
       }
     }
@@ -141,9 +143,13 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
     let finalNextStatus = transition.nextStatus;
     if (decision === 'REVERTED') {
       finalNextStatus = 'REVERTED' as ApplicationStatus;
+    } else if (application.status === ApplicationStatus.REVIEWER_REVIEWED && user.role === Role.PRINCIPAL) {
+      finalNextStatus = ApplicationStatus.PRINCIPAL_REVIEWED;
     }
 
     const updateData: any = { status: finalNextStatus };
+    let assignedChairman: any = null;
+
     if (user.role === Role.REVIEWER) {
       if (reviewer_score !== undefined && reviewer_score !== null) {
         const rounded = Number(Number(reviewer_score).toFixed(1));
@@ -155,12 +161,77 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
         updateData.reviewer_score = application.total_score;
         updateData.final_score = application.total_score;
       }
+
+      // Automatically forward to Chairman Reviewer
+      finalNextStatus = ApplicationStatus.CHAIRMAN_ASSIGNED;
+      updateData.status = finalNextStatus;
+
+      if (application.chairman_id) {
+        assignedChairman = await prisma.user.findUnique({
+          where: { id: application.chairman_id },
+        });
+      } else {
+        // Auto-assign active Chairman Reviewer (excluding faculty applicant)
+        const candidates = await prisma.user.findMany({
+          where: {
+            role: Role.CHAIRMAN_REVIEWER,
+            is_active: true,
+            id: { not: application.faculty_id },
+          },
+          include: {
+            _count: { select: { assigned_chairman_reviews: true } },
+          },
+          orderBy: { created_at: 'asc' },
+        });
+
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => a._count.assigned_chairman_reviews - b._count.assigned_chairman_reviews);
+          assignedChairman = candidates[0];
+        }
+      }
+
+      if (assignedChairman) {
+        updateData.chairman_id = assignedChairman.id;
+      }
+    } else if (user.role === Role.CHAIRMAN_REVIEWER) {
+      if (!application.chairman_id) {
+        updateData.chairman_id = user.id;
+      }
+      if (final_score !== undefined && final_score !== null) {
+        updateData.final_score = Number(Number(final_score).toFixed(1));
+      } else if (reviewer_score !== undefined && reviewer_score !== null) {
+        updateData.final_score = Number(Number(reviewer_score).toFixed(1));
+      }
     }
 
     const updated = await prisma.application.update({
       where: { id: application.id },
       data: updateData,
     });
+
+    // If auto-forwarded to Chairman Reviewer, log audit trail and notify Chairman Reviewer
+    if (user.role === Role.REVIEWER && assignedChairman) {
+      await prisma.auditLog.create({
+        data: {
+          user_id: user.id,
+          action: AuditAction.CHAIRMAN_ASSIGNED,
+          entity_type: 'Application',
+          entity_id: application.id,
+          details: {
+            chairman_id: assignedChairman.id,
+            chairman_name: assignedChairman.name,
+            auto_forwarded: true,
+          },
+        },
+      });
+
+      const subject = `New Application Auto-Forwarded for Chairman Review`;
+      const body = `Dear ${assignedChairman.name},<br><br>
+The peer review for faculty appraisal has been completed and automatically forwarded to you for Chairman Review for the academic year ${application.academic_year}.<br>
+Please access your dashboard to complete the review.`;
+
+      sendEmail(assignedChairman.email, subject, body).catch(e => console.error("Failed to send chairman email", e));
+    }
 
     // Audit log
     const actionMap: Record<string, AuditAction> = {
@@ -180,7 +251,7 @@ router.post('/:applicationId', async (req: Request, res: Response, next: NextFun
           decision,
           comments,
           from_status: application.status,
-          to_status: transition.nextStatus,
+          to_status: finalNextStatus,
         },
       },
     });
@@ -271,10 +342,10 @@ router.put('/:applicationId/entry/:categoryId/score', authorize(Role.REVIEWER), 
 
 // ─── PUT /api/reviews/:applicationId/score — Update overall application reviewer score ──
 
-router.put('/:applicationId/score', authorize(Role.REVIEWER), async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:applicationId/score', authorize(Role.REVIEWER, Role.CHAIRMAN_REVIEWER), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const applicationId = req.params.applicationId as string;
-    const { reviewer_score } = req.body;
+    const { reviewer_score, final_score } = req.body;
     const user = req.user!;
 
     const application = await prisma.application.findUnique({
@@ -282,24 +353,40 @@ router.put('/:applicationId/score', authorize(Role.REVIEWER), async (req: Reques
     });
 
     if (!application) throw new NotFoundError('Application');
-    if (application.reviewer_id !== user.id) throw new ForbiddenError('This application is not assigned to you');
-    if (application.status !== 'REVIEWER_ASSIGNED') throw new ValidationError('Application is not in REVIEWER_ASSIGNED status');
+    if (user.role === Role.REVIEWER && application.reviewer_id !== user.id) {
+      throw new ForbiddenError('This application is not assigned to you');
+    }
+    if (user.role === Role.CHAIRMAN_REVIEWER && application.chairman_id && application.chairman_id !== user.id) {
+      throw new ForbiddenError('This application is not assigned to you');
+    }
 
-    const newScore = reviewer_score === '' || reviewer_score === null || reviewer_score === undefined
-      ? null
-      : Number(Number(reviewer_score).toFixed(1));
+    const effectiveScore = final_score !== undefined && final_score !== null && final_score !== ''
+      ? Number(Number(final_score).toFixed(1))
+      : (reviewer_score !== undefined && reviewer_score !== null && reviewer_score !== ''
+          ? Number(Number(reviewer_score).toFixed(1))
+          : null);
+
+    const updateData: any = {};
+    if (user.role === Role.CHAIRMAN_REVIEWER) {
+      if (effectiveScore !== null) {
+        updateData.final_score = effectiveScore;
+      }
+      if (!application.chairman_id) {
+        updateData.chairman_id = user.id;
+      }
+    } else {
+      updateData.reviewer_score = effectiveScore;
+      updateData.final_score = effectiveScore !== null ? effectiveScore : application.total_score;
+    }
 
     const updatedApp = await prisma.application.update({
       where: { id: applicationId },
-      data: {
-        reviewer_score: newScore,
-        final_score: newScore !== null ? newScore : application.total_score,
-      },
+      data: updateData,
     });
 
     res.json({
       success: true,
-      message: 'Overall reviewer score updated',
+      message: user.role === Role.CHAIRMAN_REVIEWER ? 'Finalized score updated' : 'Reviewer score updated',
       data: {
         total_score: updatedApp.total_score,
         reviewer_score: updatedApp.reviewer_score,

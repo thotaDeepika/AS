@@ -138,8 +138,14 @@ export const applicationsApi = {
 // ─── Reviews API ──────────────────────────────────────────────────────────────
 
 export const reviewsApi = {
-  submit: (appId: string, decision: string, comments: string, reviewer_score?: number | '', signature_path?: string) =>
-    api.post(`/reviews/${appId}`, { decision, comments, signature_path, reviewer_score: reviewer_score !== '' && reviewer_score !== undefined ? Number(reviewer_score) : undefined }),
+  submit: (appId: string, decision: string, comments: string, reviewer_score?: number | '', signature_path?: string, final_score?: number | '') =>
+    api.post(`/reviews/${appId}`, {
+      decision,
+      comments,
+      signature_path,
+      reviewer_score: reviewer_score !== '' && reviewer_score !== undefined ? Number(reviewer_score) : undefined,
+      final_score: final_score !== '' && final_score !== undefined ? Number(final_score) : undefined,
+    }),
 
   uploadSignature: (file: File) => {
     const fd = new FormData();
@@ -150,8 +156,8 @@ export const reviewsApi = {
   updateEntryScore: (appId: string, categoryId: string, reviewer_score: number | '') =>
     api.put(`/reviews/${appId}/entry/${categoryId}/score`, { reviewer_score }),
 
-  updateScore: (appId: string, reviewer_score: number | '') =>
-    api.put(`/reviews/${appId}/score`, { reviewer_score }),
+  updateScore: (appId: string, reviewer_score: number | '', isFinalScore?: boolean) =>
+    api.put(`/reviews/${appId}/score`, isFinalScore ? { final_score: reviewer_score } : { reviewer_score }),
 };
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
@@ -202,6 +208,9 @@ export const reportsApi = {
 
   downloadConsolidatedPDF: (params?: Record<string, string>) =>
     api.get('/reports/consolidated/pdf', { params, responseType: 'blob' }),
+
+  downloadMonthlyPDF: (params?: Record<string, any>) =>
+    api.get('/reports/monthly/pdf', { params, responseType: 'blob' }),
 
   downloadExcel: (params?: Record<string, string>) =>
     api.get('/reports/consolidated/excel', { params, responseType: 'blob' }),

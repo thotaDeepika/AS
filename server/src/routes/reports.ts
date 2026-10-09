@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { NotFoundError, ForbiddenError } from '../lib/errors.js';
-import { generateAppraisalPDF, generateConsolidatedPDF, generateExcelReport } from '../lib/reportGenerator.js';
+import { generateAppraisalPDF, generateConsolidatedPDF, generateMonthlyReportPDF, generateExcelReport } from '../lib/reportGenerator.js';
 
 const router = Router();
 router.use(authenticate);
@@ -89,6 +89,41 @@ router.get(
 
       await workbook.xlsx.write(res);
       res.end();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── GET /api/reports/monthly/pdf — Download monthly faculty status report PDF ───
+
+router.get(
+  '/monthly/pdf',
+  authorize(Role.ADMIN, Role.PRINCIPAL, Role.HOD, Role.ACCOUNTS, Role.CHAIRMAN_REVIEWER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user!;
+      const now = new Date();
+      const month = req.query.month ? parseInt(req.query.month as string, 10) : (now.getMonth() + 1);
+      const year = req.query.year ? parseInt(req.query.year as string, 10) : now.getFullYear();
+      let department_id = req.query.department_id as string | undefined;
+
+      if (user.role === Role.HOD) {
+        department_id = user.department_id || undefined;
+      }
+
+      const pdfStream = await generateMonthlyReportPDF({
+        month,
+        year,
+        department_id,
+      });
+
+      const monthStr = String(month).padStart(2, '0');
+      const filename = `monthly_faculty_appraisal_status_${year}_${monthStr}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      pdfStream.pipe(res);
     } catch (error) {
       next(error);
     }

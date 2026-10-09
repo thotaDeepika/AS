@@ -314,7 +314,8 @@ export default function DashboardPage() {
                       <th style={{ padding: '12px 14px' }}>Department</th>
                       <th style={{ padding: '12px 14px' }}>Academic Year</th>
                       <th style={{ padding: '12px 14px' }}>Status</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Score</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Original Score</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Reviewer Score</th>
                       <th style={{ padding: '12px 14px', textAlign: 'right' }}>* Bonus</th>
                       <th style={{ padding: '12px 14px', textAlign: 'right' }}>Final Score</th>
                     </tr>
@@ -334,17 +335,11 @@ export default function DashboardPage() {
                             {app.status}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#f59e0b' }}>
-                          {app.reviewer_score != null && Number(app.reviewer_score) !== Number(app.total_score) ? (
-                            <>
-                              <span title="Reviewer Score">{Number(app.reviewer_score).toFixed(1)}</span>{' '}
-                              <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
-                                {app.total_score != null ? Number(app.total_score).toFixed(1) : ''}
-                              </span>
-                            </>
-                          ) : (
-                            (app.reviewer_score ?? app.total_score) != null ? Number(app.reviewer_score ?? app.total_score).toFixed(1) : '—'
-                          )}
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600, color: '#2563eb' }}>
+                          {app.total_score != null ? Number(app.total_score).toFixed(1) : '—'}
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#d97706' }}>
+                          {app.reviewer_score != null ? Number(app.reviewer_score).toFixed(1) : '—'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#ec4899' }}>
                           {app.bonus_score != null ? Number(app.bonus_score).toFixed(1) : '—'}

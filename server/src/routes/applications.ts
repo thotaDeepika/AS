@@ -46,8 +46,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       where.reviewer_id = user.id;
       where.status = { in: [ApplicationStatus.REVIEWER_ASSIGNED, ApplicationStatus.REVIEWER_REVIEWED] };
     } else if (user.role === Role.CHAIRMAN_REVIEWER) {
-      where.chairman_id = user.id;
-      where.status = { in: [ApplicationStatus.CHAIRMAN_ASSIGNED, ApplicationStatus.CHAIRMAN_REVIEWED] };
+      where.OR = [
+        { chairman_id: user.id },
+        { chairman_id: null },
+      ];
+      where.status = { in: [ApplicationStatus.CHAIRMAN_ASSIGNED, ApplicationStatus.REVIEWER_REVIEWED, ApplicationStatus.CHAIRMAN_REVIEWED] };
     } else if (user.role === Role.PRINCIPAL) {
       where.status = { in: [ApplicationStatus.CHAIRMAN_REVIEWED, ApplicationStatus.REVIEWER_REVIEWED, ApplicationStatus.PRINCIPAL_REVIEWED, ApplicationStatus.FROZEN] };
     } else if (user.role === Role.ACCOUNTS) {
@@ -238,7 +241,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     if (user.role === Role.REVIEWER && application.reviewer_id !== user.id) {
       throw new ForbiddenError('This application is not assigned to you');
     }
-    if (user.role === Role.CHAIRMAN_REVIEWER && application.chairman_id !== user.id) {
+    if (user.role === Role.CHAIRMAN_REVIEWER && application.chairman_id && application.chairman_id !== user.id) {
       throw new ForbiddenError('This application is not assigned to you');
     }
 

@@ -45,8 +45,29 @@ export default function ReportsPage() {
   const [deptFilter, setDeptFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Monthly Report State
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+  const [selectedMonthYear, setSelectedMonthYear] = useState<number>(now.getFullYear());
+  const [monthlyDeptFilter, setMonthlyDeptFilter] = useState('');
+
+  const monthsList = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
+
   const isFaculty = user?.role === 'FACULTY';
-  const canConsolidate = ['ADMIN', 'PRINCIPAL', 'ACCOUNTS'].includes(user?.role || '');
+  const canConsolidate = ['ADMIN', 'PRINCIPAL', 'ACCOUNTS', 'HOD'].includes(user?.role || '');
 
   useEffect(() => {
     const load = async () => {
@@ -106,6 +127,25 @@ export default function ReportsPage() {
     }
   };
 
+  const handleMonthlyPDF = async () => {
+    setDownloading('monthly-pdf');
+    try {
+      const params: Record<string, any> = {
+        month: selectedMonth,
+        year: selectedMonthYear,
+      };
+      if (monthlyDeptFilter) params.department_id = monthlyDeptFilter;
+      const res = await reportsApi.downloadMonthlyPDF(params);
+      const monthStr = String(selectedMonth).padStart(2, '0');
+      triggerDownload(res.data, `monthly_faculty_appraisal_status_${selectedMonthYear}_${monthStr}.pdf`);
+    } catch (e) {
+      console.error('Monthly PDF failed', e);
+      alert('Failed to download Monthly Report PDF.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const handleExcelDownload = async () => {
     setDownloading('excel');
     try {
@@ -155,9 +195,69 @@ export default function ReportsPage() {
         <p className="page-subtitle">Generate PDF reports and Excel exports for appraisal data</p>
       </div>
 
-      {/* ── Consolidated Reports (Admin/Principal/Accounts) ── */}
+      {/* ── Monthly Faculty Appraisal Report (Approved / Rejected) ── */}
       {canConsolidate && (
         <section className="reports-section animate-slideUp">
+          <div className="reports-section-header">
+            <div>
+              <h2>🗓️ Monthly Faculty Appraisal Status Report</h2>
+              <p className="text-muted">
+                Official monthly PDF report listing all faculty members with scores and a dedicated Approved or Rejected decision column
+              </p>
+            </div>
+          </div>
+
+          <div className="reports-filters">
+            <div className="filter-group">
+              <label>Select Month</label>
+              <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
+                {monthsList.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Select Year</label>
+              <select value={selectedMonthYear} onChange={e => setSelectedMonthYear(Number(e.target.value))}>
+                {[2027, 2026, 2025, 2024, 2023].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Department</label>
+              <select value={monthlyDeptFilter} onChange={e => setMonthlyDeptFilter(e.target.value)}>
+                <option value="">All Departments</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="reports-download-grid">
+            <button
+              className="report-download-card"
+              onClick={handleMonthlyPDF}
+              disabled={downloading === 'monthly-pdf'}
+              style={{ borderLeft: '4px solid #10b981' }}
+            >
+              <div className="download-icon" style={{ background: '#ecfdf5', color: '#10b981' }}>🗓️</div>
+              <div className="download-info">
+                <h3>Monthly Faculty Status PDF</h3>
+                <p>Lists all faculty with Original Score, Reviewer Score, Final Score, and Approved / Rejected status</p>
+              </div>
+              <span className="download-badge" style={{ background: '#059669', color: '#fff' }}>
+                {downloading === 'monthly-pdf' ? '⏳ Generating PDF...' : 'Download Monthly PDF'}
+              </span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* ── Consolidated Reports (Admin/Principal/Accounts) ── */}
+      {canConsolidate && (
+        <section className="reports-section animate-slideUp" style={{ animationDelay: '0.05s' }}>
           <div className="reports-section-header">
             <div>
               <h2>📊 Consolidated Reports</h2>
@@ -252,7 +352,7 @@ export default function ReportsPage() {
                   {!isFaculty && <th>Department</th>}
                   <th>Academic Year</th>
                   <th>Status</th>
-                  <th>Faculty Score</th>
+                  <th>Original Score</th>
                   <th>Reviewer Score</th>
                   <th>Action</th>
                 </tr>

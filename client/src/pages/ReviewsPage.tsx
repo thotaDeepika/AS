@@ -13,6 +13,7 @@ interface Application {
   status: string;
   total_score: number | null;
   reviewer_score?: number | null;
+  final_score?: number | null;
   faculty: {
     id: string;
     name: string;
@@ -46,6 +47,9 @@ export default function ReviewsPage() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [reviewerScoreInput, setReviewerScoreInput] = useState<string>('');
   const [savingOverallScore, setSavingOverallScore] = useState<boolean>(false);
+  const [chairmanFinalScoreInput, setChairmanFinalScoreInput] = useState<string>('');
+  const [chairmanScoreSource, setChairmanScoreSource] = useState<'REVIEWER' | 'ORIGINAL' | 'CUSTOM'>('REVIEWER');
+  const [savingChairmanScore, setSavingChairmanScore] = useState<boolean>(false);
 
   const loadApplications = async () => {
     try {
@@ -73,6 +77,19 @@ export default function ReviewsPage() {
         setReviewerScoreInput(Number(appData.total_score).toFixed(1));
       } else {
         setReviewerScoreInput('');
+      }
+
+      // Initialize Chairman final score selection
+      const origScore = appData.total_score != null ? Number(appData.total_score) : 0;
+      const revScore = appData.reviewer_score != null ? Number(appData.reviewer_score) : origScore;
+      const curFinal = appData.final_score != null && Number(appData.final_score) > 0 ? Number(appData.final_score) : revScore;
+      setChairmanFinalScoreInput(curFinal.toFixed(1));
+      if (Math.abs(curFinal - origScore) < 0.01 && Math.abs(origScore - revScore) > 0.01) {
+        setChairmanScoreSource('ORIGINAL');
+      } else if (Math.abs(curFinal - revScore) < 0.01) {
+        setChairmanScoreSource('REVIEWER');
+      } else {
+        setChairmanScoreSource('CUSTOM');
       }
 
       if (user?.role === 'PRINCIPAL') {
@@ -105,6 +122,25 @@ export default function ReviewsPage() {
     }
   };
 
+  const handleSaveChairmanFinalScore = async () => {
+    if (!selectedApp || chairmanFinalScoreInput === '') return;
+    setSavingChairmanScore(true);
+    try {
+      const val = Number(chairmanFinalScoreInput);
+      const res = await reviewsApi.updateScore(selectedApp.id, val, true);
+      setSelectedApp((prev: any) => ({
+        ...prev,
+        final_score: res.data.data.final_score,
+      }));
+      showToast('success', `Final score finalized and saved as ${val.toFixed(1)}`);
+      loadApplications();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || 'Failed to finalize score');
+    } finally {
+      setSavingChairmanScore(false);
+    }
+  };
+
   const handleSubmitReview = async () => {
     if (!comments.trim()) return;
     setReviewing(true);
@@ -115,7 +151,8 @@ export default function ReviewsPage() {
         signaturePath = uploadRes.data.data.file_path;
       }
       const scoreToSend = user?.role === 'REVIEWER' && reviewerScoreInput !== '' ? Number(reviewerScoreInput) : undefined;
-      const res = await reviewsApi.submit(selectedApp.id, decision, comments, scoreToSend, signaturePath);
+      const finalScoreToSend = user?.role === 'CHAIRMAN_REVIEWER' && chairmanFinalScoreInput !== '' ? Number(chairmanFinalScoreInput) : undefined;
+      const res = await reviewsApi.submit(selectedApp.id, decision, comments, scoreToSend, signaturePath, finalScoreToSend);
       showToast('success', res.data.message);
       setComments('');
       setSignatureFile(null);
@@ -168,18 +205,94 @@ export default function ReviewsPage() {
         return <StatusBadge status={row.status} size="sm" />;
       },
     },
-    {
-      key: 'total_score',
-      header: 'Score',
-      sortable: true,
-      render: (row: Application) => (
-        <span className="cell-score">
-          {row.reviewer_score !== null && row.reviewer_score !== undefined && Number(row.reviewer_score) !== Number(row.total_score)
-            ? <><span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Reviewer Score">{Number(row.reviewer_score).toFixed(1)}</span> <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">{row.total_score != null ? Number(row.total_score).toFixed(1) : ''}</span></>
-            : ((row.reviewer_score ?? row.total_score) != null ? Number(row.reviewer_score ?? row.total_score).toFixed(1) : '—')}
-        </span>
-      ),
-    },
+    ...(user?.role === 'CHAIRMAN_REVIEWER' ? [
+      {
+        key: 'original_score',
+        header: 'Original Score',
+        sortable: true,
+        render: (row: Application) => (
+          <span style={{ fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '4px 10px', borderRadius: '6px', fontSize: '0.9rem', border: '1px solid #bfdbfe' }}>
+            {row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'reviewer_score',
+        header: 'Reviewer Score',
+        sortable: true,
+        render: (row: Application) => {
+          const revVal = row.reviewer_score != null ? Number(row.reviewer_score) : (row.total_score != null ? Number(row.total_score) : null);
+          const isModified = row.reviewer_score != null && Number(row.reviewer_score) !== Number(row.total_score);
+          return (
+            <span style={{
+              fontWeight: 700,
+              color: isModified ? '#d97706' : '#475569',
+              background: isModified ? '#fef3c7' : '#f8fafc',
+              border: isModified ? '1px solid #fcd34d' : '1px solid #e2e8f0',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }} title={isModified ? 'Adjusted by Peer Reviewer' : 'Unchanged from Original Score'}>
+              {revVal != null ? revVal.toFixed(1) : '—'}
+              {isModified && <span style={{ fontSize: '0.75rem' }}>✏️</span>}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'final_score',
+        header: 'Finalized Score',
+        sortable: true,
+        render: (row: Application) => {
+          const isFinalized = row.status === 'CHAIRMAN_REVIEWED' || row.status === 'PRINCIPAL_REVIEWED' || row.status === 'FROZEN' || row.status === 'SENT_TO_ACCOUNTS';
+          return (
+            <span style={{
+              fontWeight: 700,
+              color: isFinalized ? '#059669' : '#64748b',
+              background: isFinalized ? '#d1fae5' : '#f1f5f9',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              border: isFinalized ? '1px solid #a7f3d0' : '1px dashed #cbd5e1'
+            }}>
+              {row.final_score != null && Number(row.final_score) > 0
+                ? Number(row.final_score).toFixed(1)
+                : (isFinalized ? '—' : '⏳ Pending')}
+            </span>
+          );
+        },
+      },
+    ] : [
+      {
+        key: 'original_score',
+        header: 'Original Score',
+        sortable: true,
+        render: (row: Application) => (
+          <span className="cell-score" style={{ color: '#2563eb', fontWeight: 600 }}>
+            {row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'reviewer_score',
+        header: 'Reviewer Score',
+        sortable: true,
+        render: (row: Application) => (
+          <span className="cell-score">
+            {row.reviewer_score != null ? (
+              <span style={{ color: '#d97706', fontWeight: 700 }}>
+                {Number(row.reviewer_score).toFixed(1)}
+              </span>
+            ) : (
+              <span style={{ color: '#94a3b8' }}>—</span>
+            )}
+          </span>
+        ),
+      },
+    ]),
     {
       key: 'entries',
       header: 'Entries',
@@ -318,6 +431,222 @@ export default function ReviewsPage() {
                 </div>
               )}
 
+              {user?.role === 'CHAIRMAN_REVIEWER' && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.05), rgba(99, 102, 241, 0.08))',
+                  border: '1.5px solid rgba(236, 72, 153, 0.35)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  marginBottom: '24px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.03)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.6rem' }}>⚖️</span>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          Score Comparison & Finalization
+                        </h4>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.83rem', color: 'var(--text-muted)' }}>
+                          Compare original faculty submission score vs peer reviewer score, and finalize one among them.
+                        </p>
+                      </div>
+                    </div>
+                    {selectedApp.status === 'CHAIRMAN_REVIEWED' && (
+                      <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '6px', background: '#d1fae5', color: '#065f46', fontWeight: 700 }}>
+                        ✓ Finalized by Chairman Reviewer
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Two Columns Side-by-Side */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '18px' }}>
+                    
+                    {/* Column 1: Original Score */}
+                    <div
+                      onClick={() => {
+                        const orig = Number(selectedApp.total_score || 0).toFixed(1);
+                        setChairmanFinalScoreInput(orig);
+                        setChairmanScoreSource('ORIGINAL');
+                      }}
+                      style={{
+                        border: chairmanScoreSource === 'ORIGINAL' ? '2.5px solid #2563eb' : '1.5px solid #cbd5e1',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        background: chairmanScoreSource === 'ORIGINAL' ? '#eff6ff' : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: chairmanScoreSource === 'ORIGINAL' ? '0 4px 12px rgba(37, 99, 235, 0.15)' : 'none',
+                        position: 'relative'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Column 1: Original Score
+                        </span>
+                        <input
+                          type="radio"
+                          name="chairmanScoreSelection"
+                          checked={chairmanScoreSource === 'ORIGINAL'}
+                          onChange={() => {
+                            const orig = Number(selectedApp.total_score || 0).toFixed(1);
+                            setChairmanFinalScoreInput(orig);
+                            setChairmanScoreSource('ORIGINAL');
+                          }}
+                          style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                        />
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 900, color: '#1d4ed8', marginBottom: '4px' }}>
+                        {selectedApp.total_score != null ? Number(selectedApp.total_score).toFixed(1) : '0.0'}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
+                        System-calculated score submitted by faculty.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn-small"
+                        style={{
+                          marginTop: '12px',
+                          width: '100%',
+                          background: chairmanScoreSource === 'ORIGINAL' ? '#2563eb' : '#f1f5f9',
+                          color: chairmanScoreSource === 'ORIGINAL' ? '#ffffff' : '#334155',
+                          border: 'none',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {chairmanScoreSource === 'ORIGINAL' ? '✓ Selected as Final' : 'Select Original Score'}
+                      </button>
+                    </div>
+
+                    {/* Column 2: Reviewer Score */}
+                    <div
+                      onClick={() => {
+                        const rev = Number(selectedApp.reviewer_score != null ? selectedApp.reviewer_score : (selectedApp.total_score || 0)).toFixed(1);
+                        setChairmanFinalScoreInput(rev);
+                        setChairmanScoreSource('REVIEWER');
+                      }}
+                      style={{
+                        border: chairmanScoreSource === 'REVIEWER' ? '2.5px solid #d97706' : '1.5px solid #cbd5e1',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        background: chairmanScoreSource === 'REVIEWER' ? '#fffbeb' : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: chairmanScoreSource === 'REVIEWER' ? '0 4px 12px rgba(217, 119, 6, 0.15)' : 'none',
+                        position: 'relative'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Column 2: Reviewer Score
+                        </span>
+                        <input
+                          type="radio"
+                          name="chairmanScoreSelection"
+                          checked={chairmanScoreSource === 'REVIEWER'}
+                          onChange={() => {
+                            const rev = Number(selectedApp.reviewer_score != null ? selectedApp.reviewer_score : (selectedApp.total_score || 0)).toFixed(1);
+                            setChairmanFinalScoreInput(rev);
+                            setChairmanScoreSource('REVIEWER');
+                          }}
+                          style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                        />
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 900, color: '#b45309', marginBottom: '4px' }}>
+                        {selectedApp.reviewer_score != null
+                          ? Number(selectedApp.reviewer_score).toFixed(1)
+                          : (selectedApp.total_score != null ? Number(selectedApp.total_score).toFixed(1) : '0.0')}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
+                        {selectedApp.reviewer_score != null && Number(selectedApp.reviewer_score) !== Number(selectedApp.total_score)
+                          ? '✏️ Modified / verified by peer reviewer.'
+                          : '✓ Verified & accepted by peer reviewer.'}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn-small"
+                        style={{
+                          marginTop: '12px',
+                          width: '100%',
+                          background: chairmanScoreSource === 'REVIEWER' ? '#d97706' : '#f1f5f9',
+                          color: chairmanScoreSource === 'REVIEWER' ? '#ffffff' : '#334155',
+                          border: 'none',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {chairmanScoreSource === 'REVIEWER' ? '✓ Selected as Final' : 'Select Reviewer Score'}
+                      </button>
+                    </div>
+
+                  </div>
+
+                  {/* Finalization Action Row */}
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0f172a' }}>
+                        Finalized Score:
+                      </span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="1000"
+                        value={chairmanFinalScoreInput}
+                        onChange={e => {
+                          setChairmanFinalScoreInput(e.target.value);
+                          setChairmanScoreSource('CUSTOM');
+                        }}
+                        style={{
+                          width: '95px',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '2px solid #059669',
+                          fontWeight: 800,
+                          fontSize: '1.1rem',
+                          textAlign: 'right',
+                          color: '#059669',
+                          background: '#f0fdf4'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        ({chairmanScoreSource === 'ORIGINAL' ? 'Original Score Chosen' : chairmanScoreSource === 'REVIEWER' ? 'Reviewer Score Chosen' : 'Custom Override'})
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={handleSaveChairmanFinalScore}
+                      disabled={savingChairmanScore || chairmanFinalScoreInput === ''}
+                      style={{
+                        padding: '8px 18px',
+                        fontSize: '0.88rem',
+                        fontWeight: 700,
+                        backgroundColor: '#059669',
+                        borderColor: '#047857',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {savingChairmanScore ? 'Saving...' : '💾 Finalize Score Now'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="score-overview">
                 <ScoreCard label="Teaching" score={teaching} color="#3b82f6" size="sm" />
                 <ScoreCard label="Research" score={resScore} color="#8b5cf6" size="sm" />
@@ -365,9 +694,16 @@ export default function ReviewsPage() {
                       }}
                     />
                   ) : (
-                    entry.reviewer_score !== null && entry.reviewer_score !== undefined && Number(entry.reviewer_score) !== Number(entry.calculated_score)
-                      ? <><span title="Reviewer Adjusted Score" style={{color: '#f59e0b', fontWeight: 'bold'}}>{Number(entry.reviewer_score).toFixed(1)}</span> <span style={{textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8'}}>{Number(entry.calculated_score).toFixed(1)}</span></>
-                      : ((entry.reviewer_score ?? entry.calculated_score) !== null ? Number(entry.reviewer_score ?? entry.calculated_score).toFixed(1) : '—')
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.82rem', padding: '2px 8px', borderRadius: '4px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+                        Original: <strong>{entry.calculated_score != null ? Number(entry.calculated_score).toFixed(1) : '—'}</strong>
+                      </span>
+                      {entry.reviewer_score !== null && entry.reviewer_score !== undefined && (
+                        <span style={{ fontSize: '0.82rem', padding: '2px 8px', borderRadius: '4px', background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
+                          Reviewer: <strong>{Number(entry.reviewer_score).toFixed(1)}</strong>
+                        </span>
+                      )}
+                    </div>
                   )}
                 </span>
               </div>
@@ -515,6 +851,32 @@ export default function ReviewsPage() {
                   </p>
                 </div>
               )}
+              {user?.role === 'CHAIRMAN_REVIEWER' && (
+                <div className="form-group" style={{ background: 'rgba(16, 185, 129, 0.06)', padding: '14px', borderRadius: '8px', border: '1.5px solid rgba(16, 185, 129, 0.3)' }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#065f46', fontWeight: 700, marginBottom: '6px' }}>
+                    <span>Finalized Score to Submit</span>
+                    <span style={{ fontSize: '0.85rem', color: '#047857' }}>
+                      Choice: <strong>{chairmanScoreSource === 'ORIGINAL' ? 'Original Score' : chairmanScoreSource === 'REVIEWER' ? 'Reviewer Score' : 'Custom Override'}</strong>
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="1000"
+                    value={chairmanFinalScoreInput}
+                    onChange={e => {
+                      setChairmanFinalScoreInput(e.target.value);
+                      setChairmanScoreSource('CUSTOM');
+                    }}
+                    placeholder="Enter finalized score..."
+                    style={{ width: '100%', padding: '8px 12px', fontSize: '1.1rem', fontWeight: 800, color: '#065f46', border: '1.5px solid #10b981', borderRadius: '6px', background: '#fff' }}
+                  />
+                  <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#047857', lineHeight: 1.4 }}>
+                    ℹ️ This score is finalized by the Chairman Reviewer and will be submitted directly to Principal and Accounts.
+                  </p>
+                </div>
+              )}
               <div className="form-group">
                 <label>Comments</label>
                 <textarea
@@ -558,7 +920,7 @@ export default function ReviewsPage() {
 function canReview(role: string, status: string): boolean {
   if (role === 'HOD' && status === 'SUBMITTED') return true;
   if (role === 'REVIEWER' && status === 'REVIEWER_ASSIGNED') return true;
-  if (role === 'CHAIRMAN_REVIEWER' && status === 'CHAIRMAN_ASSIGNED') return true;
+  if (role === 'CHAIRMAN_REVIEWER' && (status === 'CHAIRMAN_ASSIGNED' || status === 'REVIEWER_REVIEWED')) return true;
   if (role === 'PRINCIPAL' && (status === 'CHAIRMAN_REVIEWED' || status === 'REVIEWER_REVIEWED')) return true;
   return false;
 }

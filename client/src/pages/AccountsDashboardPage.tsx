@@ -98,26 +98,31 @@ export default function AccountsDashboardPage() {
       render: (row: Application) => <StatusBadge status={row.status} size="sm" />,
     },
     {
-      key: 'total_score',
-      header: 'Final Score',
+      key: 'original_score',
+      header: 'Original Score',
+      sortable: true,
+      render: (row: Application) => (
+        <span className="cell-score" style={{ color: '#2563eb', fontWeight: 600 }}>
+          {row.total_score != null ? Number(row.total_score).toFixed(1) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'final_score',
+      header: 'Reviewer / Final Score',
       sortable: true,
       render: (row: Application) => (
         <span className="cell-score">
-          {row.reviewer_score != null && Number(row.reviewer_score) !== Number(row.total_score) ? (
-            <>
-              <span style={{ color: '#f59e0b', fontWeight: 'bold' }} title="Updated Reviewer Score">
-                {Number(row.reviewer_score).toFixed(1)}
-              </span>{' '}
-              <span style={{ textDecoration: 'line-through', fontSize: '0.8em', color: '#94a3b8' }} title="Original Score">
-                {row.total_score != null ? Number(row.total_score).toFixed(1) : ''}
-              </span>
-            </>
+          {row.final_score != null && Number(row.final_score) > 0 ? (
+            <span style={{ color: '#059669', fontWeight: 700 }}>
+              {Number(row.final_score).toFixed(1)}
+            </span>
+          ) : row.reviewer_score != null ? (
+            <span style={{ color: '#d97706', fontWeight: 700 }}>
+              {Number(row.reviewer_score).toFixed(1)}
+            </span>
           ) : (
-            row.reviewer_score != null
-              ? Number(row.reviewer_score).toFixed(1)
-              : (row.final_score != null 
-                  ? Number(row.final_score).toFixed(1) 
-                  : (row.total_score != null ? Number(row.total_score).toFixed(1) : '—'))
+            <span style={{ color: '#94a3b8' }}>—</span>
           )}
         </span>
       ),
